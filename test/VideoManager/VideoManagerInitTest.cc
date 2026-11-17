@@ -103,7 +103,10 @@ void VideoManagerInitTest::_testBackendInitFailure()
 
 #else
 
-void VideoManagerInitTest::init() { UnitTest::init(); QSKIP("GStreamer not enabled"); }
+void VideoManagerInitTest::init()
+{
+    UnitTest::init();
+}
 void VideoManagerInitTest::_testQmlReadyBeforeBackendReady() { QSKIP("GStreamer not enabled"); }
 void VideoManagerInitTest::_testBackendReadyBeforeQmlReady() { QSKIP("GStreamer not enabled"); }
 void VideoManagerInitTest::_testBackendInitFailure() { QSKIP("GStreamer not enabled"); }

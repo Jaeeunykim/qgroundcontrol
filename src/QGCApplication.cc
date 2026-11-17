@@ -155,6 +155,9 @@ QGCApplication::QGCApplication(int& argc, char* argv[], const QGCCommandLinePars
     QGCLoggingCategoryManager::instance()->installFilter(loggingOptions);
 
     if (_runningUnitTests) {
+        // String and UI assertions use English, independent of the host system language.
+        settings.setValue(AppSettings::qLocaleLanguageName, static_cast<int>(QLocale::English));
+
         // Enable the AppMessage category so showAppMessage() debug logs are visible during unit tests.
         QGCLoggingCategoryManager::instance()->setCategoryEnabled(QStringLiteral("API.QGCApplication.AppMessage"),
                                                                   true);
