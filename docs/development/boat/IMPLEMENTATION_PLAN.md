@@ -236,6 +236,70 @@ P0~P5는 작업 순서이며 개발 기간이나 현재 완료 상태를 뜻하�
 | T14 | PX4 SITL 및 실제 선박: 항로 전송→시작→이동→중단→재개→RTL | 요청·PX4 보고·실제 운항 증거가 일치. 패킷 시험과 물리 동작 시험 결과를 분리 |
 | T15 | PX4/ArduPilot의 기존 Rover·항공기 및 Boat, 필요 시 Sub | 공통 변경으로 기존 운용이 손상되지 않음. 미지원/미실행 조합은 명시 |
 
+### P1 구현 기록 — 2026-11-17
+
+작업 브랜치는 `feat/boat-identity-offline-plan`이며, `feature/boat`의 `81a1611e7`에서 분기했다.
+기준은 Stable v5.1.5(`3a67d31f0`)와 기존 계획 문서 커밋이다.
+P1 구현·테스트 커밋은 `e7818cf5e`, 테스트 실행 기반 보완 커밋은 `1e2f8f5b5`다.
+
+- `QGCMAVLink::isBoat()`와 QML용 `Vehicle.boat`를 추가했다. Boat의 `rover` 값은 계속 true이며,
+  `VehicleClassRoverBoat`와 펌웨어·명령 메타데이터의 기존 공통 분류는 유지한다.
+- 기존 `preferredVehicleClass`·`offlineEditingVehicleClass` 키와 기존 숫자는 유지하고,
+  대표 MAV_TYPE 선택지에 Boat(11)를 추가했다. 기존 Rover(10)를 Boat로 추정해 바꾸지 않는다.
+- 연결 기체와 파일에서 오프라인 설정으로 타입을 복사할 때 Boat를 보존한다.
+  다른 기체의 기존 대표 타입 정규화와 `.plan`의 실제 `vehicleType` 저장 형식은 유지한다.
+- `vehicleType`이 없는 구형 mission v2 파일은 현재 오프라인 선택을 사용한다.
+  편집 중인 Boat 계획은 다른 기체 연결·해제 시 기존 전환 안내와 함께 유지되고,
+  계획을 비우면 마지막 연결 기체의 오프라인 타입으로 돌아간다.
+- QML 화면 파일은 변경하지 않았다. 기존 Fact 기반 선택 UI가 Boat 항목을 표시하며,
+  Plan View UI 테스트에 Boat를 추가해 기존 Rover 흐름과 함께 검증한다.
+
+자동 테스트 추가 범위:
+
+| 테스트 | P1 검증 내용 |
+| --- | --- |
+| `QGCMAVLinkTest` | Boat/Rover/멀티로터/Hexa/FixedWing/VTOL/Sub/Generic/Unknown 판별과 대표 타입 |
+| `AppSettingsTest` | 선택지·타입 알림·QML 속성·QSettings 저장·오프라인 Vehicle 재생성·선호 기체 연동 |
+| `PlanMasterControllerTest` | PX4 Boat/Rover/드론 및 기존 APM Rover/드론/Sub 연결·해제, 파일 왕복 16행, 편집 중 Boat 계획 보존 |
+| `TestFixturesTest` | 테스트 설정 임시 변경 후 Boat 타입 복원 |
+| `PlanViewUITest` | Rover와 Boat 각각에서 빈 계획에 WP 추가, 이륙 도구 숨김과 Return 버튼 문구 |
+
+실행 환경은 macOS 26.6.2 arm64, AppleClang 21, Qt 6.11.1, Debug이며 PX4/APM 플러그인을 모두 포함한다.
+MAVLink/XML 기준 커밋은 `c409cf690454db6d3e004bd14173bc6c7ff1e0ff`이며 실제 PX4 펌웨어는 실행하지 않았다.
+영상과 무관한 P1 검증을 위해 `QGC_ENABLE_GST_VIDEOSTREAMING=OFF`를 사용했다.
+이 구성에서 발견한 기존 테스트 기반 문제도 보완했다:
+GStreamer 비활성 테스트의 누락된 skip 정의 10개와 초기화 중 skip으로 인한 cleanup 누락,
+호스트 언어에 따라 영문 문자열 검증이 실패하는 문제다. 영어 고정은 자동 테스트 실행에만 적용한다.
+
+검증 결과와 제한:
+
+- QGC 앱·테스트 Debug 빌드 통과. 관련 CTest 7개 묶음 통과.
+- 전체 Unit CTest 197개 통과. 비활성 GStreamer 항목은 해당 테스트 내부에서 skip한다.
+- 변경한 C++ 구간의 clang-format 22.1.5 검사와 `git diff --check` 통과.
+  관련 C++ 소스 4개의 Clang-Tidy 실행은 오류 없이 완료했으며 기존 경고는 남아 있다.
+- 변경 파일 대상 pre-commit 전체 통과로 기록하지 않는다. 기존 전체 파일 포맷 위반과
+  `Vehicle.cc`의 기존 null 검사 경고 2건을 변경 전 코드에서도 재현했다.
+  중첩 빌드 디렉터리와 AppleClang PCH/LLVM 분석 도구 차이는 별도 분석용 명령으로 처리했다.
+- QSettings 저장과 Vehicle/PlanMasterController 재생성을 검증했다.
+  실제 GUI 앱 종료·재실행, Android, PX4 SITL·실선 운항과 영상 기능은 이번 검증 범위에 포함하지 않는다.
+  APM Boat/VTOL 연결 모의 구성은 현재 Copter 파라미터를 사용하므로 연결 시험 대상에서 제외했다.
+  T01~T03의 자동 검증을 실제 장비 인수나 공식 지원 완료로 간주하지 않는다.
+
+로컬 실행 명령:
+
+환경 설치·앱 실행·화면별 수동 확인은 [P1 테스트 가이드](P1_TESTING.md)를 따른다.
+
+```bash
+cmake --build build/boat-p1 --parallel 6
+ctest --test-dir build/boat-p1 --output-on-failure --parallel 2 \
+    -R '^(QGCMAVLinkTest|AppSettingsTest|TestFixturesTest|PlanMasterControllerTest|MissionControllerTest|SpeedSectionTest|PlanViewUITest)$'
+ctest --test-dir build/boat-p1 --output-on-failure --parallel 4 -L Unit
+```
+
+빌드·CTest·정적 분석·pre-commit 원본 로그는 gitignore 대상인
+`build/boat-p1/boat-p1-validation/`에 보관한다. pre-commit은 기존 전체 파일 포맷/null 경고 및
+기본 compile database 경로 문제로 실패했으므로, 통과한 개별 검사와 구분해 확인한다.
+
 ### 실행 방법과 증거
 
 실제 구현 시 [테스트 가이드](../../../test/README.md)와 [CI 가이드](../../../.github/ci-overview.md)를 따른다.
@@ -252,8 +316,8 @@ just lint
 just check
 ```
 
-위 명령은 향후 코드 변경 시 실행할 계획이다. 구성에 따라 실제 테스트 이름·GUI 실행 조건을 먼저 확인한다.
-이번 문서 작성은 문서 형식·로컬 링크·diff를 검사하며 앱 빌드/실선 시험 통과로 기록하지 않는다.
+위 명령은 이후 단계에도 사용할 기본 실행 방법이다. 구성에 따라 실제 테스트 이름·GUI 실행 조건을 먼저 확인한다.
+P1의 로컬 실행은 `build/boat-p1`에서 수행했고, 결과와 미실행 범위는 위 구현 기록에 구분했다.
 각 결과에는 QGC/PX4/XML 커밋, OS·장비, 재현 절차, 입력 메시지, 예상/실제 결과,
 로그·화면 증거, 통과/실패/미실행·제한을 남긴다. SITL 결과는 실제 추진·조향 인수를 대체하지 않는다.
 
@@ -262,6 +326,12 @@ just check
 PR 후보는 P1 식별·파일 보존, P2 운항 액션, P3 항로·속도, P4 표시 개선으로 나눈다.
 저장 형식이나 상태 유효성의 범용 변경이 커지면 별도 선행 PR로 제안한다.
 상호 의존하는 생성/읽기 코드는 같은 PR에서 수정한다. upstream 대상은 기여 가이드에 맞춰 최신 master로 재확인한다.
+
+`feature/boat`는 통합 브랜치로 유지하고, 개별 PR은 독립적으로 검토 가능한 기능 단위의 `feat/*` 브랜치로 진행한다.
+P1의 식별·저장·복원은 하나의 변경으로 다루며, 후속 단계는 `feat/boat-navigation-actions`,
+`feat/boat-mission-planning`, `feat/boat-ui` 등으로 분리할 수 있다.
+공식 제출 시에는 최신 upstream master 기반 브랜치에 해당 코드·테스트 커밋만 옮기고,
+badaMux 제품 명세와 독립적인 테스트 기반 보완은 별도 변경으로 분리한다.
 
 - [ ] BOAT-01~11의 필수 완료 조건 충족, 선택 기능과 미실행 조합 공개.
 - [ ] PX4 무인선에서 기본 운항 흐름과 연결 복구 확인.

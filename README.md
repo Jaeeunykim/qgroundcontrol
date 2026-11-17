@@ -29,8 +29,10 @@ and mission planning for any *MAVLink-enabled* drone, including *PX4* and *ArduP
 ## Boat support development
 
 This fork is preparing general-purpose Boat support improvements for contribution to upstream QGC.
-The working baseline is **v5.1.5** on **`feature/boat`**. These changes are planned; they are not yet
-implemented or accepted upstream. The first integration target is **PX4/Pixhawk ↔ MAVLink ↔ QGC**.
+The working baseline is **v5.1.5** on **`feature/boat`**. P1 identity and offline plan persistence are
+implemented on **`feat/boat-identity-offline-plan`**, with passing local automated tests. Other stages
+remain planned, and these changes have not been accepted upstream.
+The first integration target is **PX4/Pixhawk ↔ MAVLink ↔ QGC**.
 Boat support must remain independent of the vessel's onboard equipment, including badaMux.
 
 - [ ] Define the PX4-to-QGC telemetry contract and record the tested firmware and MAVLink versions.
@@ -43,6 +45,9 @@ Boat support must remain independent of the vessel's onboard equipment, includin
 See the [implementation plan](docs/development/boat/IMPLEMENTATION_PLAN.md) for QML scope, staged
 tests, and completion criteria, and the [telemetry contract draft](docs/development/boat/TELEMETRY_CONTRACT.md)
 for message semantics and decisions required with the PX4 team. Detailed working documents are in Korean.
+The [P1 testing guide](docs/development/boat/P1_TESTING.md) covers macOS setup, app launch,
+offline save/restore checks, and automated regression tests. Checklist completion also requires the
+manual/device coverage recorded in the implementation plan.
 
 ## badaMux product communication specification
 
