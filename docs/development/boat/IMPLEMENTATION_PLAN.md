@@ -288,6 +288,8 @@ GStreamer 비활성 테스트의 누락된 skip 정의 10개와 초기화 중 sk
 로컬 실행 명령:
 
 환경 설치·앱 실행·화면별 수동 확인은 [P1 테스트 가이드](P1_TESTING.md)를 따른다.
+같은 가이드의 6장에는 실제 MAV_TYPE과 공통 클래스의 차이, Boat 선택·연결 식별,
+QSettings/계획 파일 저장·복원 및 P1 변경 전후의 ASCII 흐름도와 관련 코드 위치를 정리했다.
 
 ```bash
 cmake --build build/boat-p1 --parallel 6

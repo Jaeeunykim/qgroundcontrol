@@ -120,3 +120,192 @@ MAVLink Inspector에서 autopilot의 `HEARTBEAT.type`을 확인한다.
 PX4 빌드/파라미터에서 어떤 타입을 보고할지는 해당 펌웨어를 별도로 확인해야 한다.
 이번 P1은 PX4 펌웨어 설정이나 badaMux 메시지 규약을 변경하지 않는다.
 모터 구동·미션 업로드/실행·Go To·중단·RTL은 이 식별 확인과 분리된 후속 운항 시험이다.
+
+## 6. P1 내부 처리와 ASCII 흐름도
+
+### 6.1 실제 기체 타입과 공통 동작 분류
+
+`MAV_TYPE`은 실제 기체의 종류이고, `VehicleClass`는 공통 동작과 메타데이터를 재사용하는 분류다.
+Boat와 Rover의 실제 타입은 구분하면서 기존 공통 클래스는 유지한다.
+
+```text
+Actual vehicle type (MAV_TYPE)       Shared vehicle class
+-----------------------------       --------------------
+MAV_TYPE_GROUND_ROVER = 10  -----+
+                                +--> VehicleClassRoverBoat = 10
+MAV_TYPE_SURFACE_BOAT = 11  -----+
+```
+
+위 그림에서 클래스 값 10과 Rover의 MAV_TYPE 값 10은 숫자가 같지만 역할이 다르다.
+Boat를 공통 클래스로 분류한 결과를 실제 기체 타입이나 오프라인 선택으로 다시 사용하면 Boat 구분을 잃는다.
+
+| 내부 값 | Boat | Rover | Quadrotor |
+| --- | --- | --- | --- |
+| `vehicleType` | 11 | 10 | 2 |
+| `vehicle.boat` | true | false | false |
+| `vehicle.rover` | true | true | false |
+| `vehicleClass` | RoverBoat(10) | RoverBoat(10) | MultiRotor(2) |
+
+`rover`는 기존 Rover/Boat 공통 판별을 유지한다. Boat 전용 판별은 새 `boat` 속성을 사용한다.
+P1은 이 상태를 QML에 제공하며, 고도 UI 숨김과 Boat 아이콘 적용은 후속 P3/P4 범위다.
+
+### 6.2 오프라인 목록에서 Boat 선택
+
+```text
+[Plan View / Vehicle Info]
+             |
+             | Select Boat (11)
+             v
+[AppSettings / SettingsFact]
+ offlineEditingVehicleClass = 11
+             |
+             | Fact::rawValueChanged
+             v
+[Vehicle::_offlineVehicleTypeSettingChanged()]
+ _vehicleType = MAV_TYPE_SURFACE_BOAT
+             |
+             | Vehicle::vehicleTypeChanged
+             v
+[Offline controllerVehicle / QML]
+ vehicleType = 11
+ boat = true
+ rover = true
+```
+
+선택지는 `App.SettingsGroup.json`의 Fact 메타데이터에 추가했다.
+기존 `offlineEditingVehicleClass` 키는 호환성을 위해 유지하며,
+실제로는 오프라인 편집용 대표 MAV_TYPE 값이 들어간다. Boat는 11, Rover는 기존 10을 사용한다.
+`preferredVehicleClass`에도 Boat 선택지를 제공하며, 해당 선호 기체를 선택하면 오프라인 설정과 연동된다.
+
+빈 계획의 오프라인 Vehicle은 `trackFirmwareVehicleTypeChanges()`로 설정 변경을 추적한다.
+첫 미션 항목을 추가하거나 미션 항목이 있는 계획 파일을 읽으면 추적을 중단해 편집 대상의 타입을 고정한다.
+이후 미저장 Boat 계획이 있는 상태에서 다른 기체에 연결하면 기존 계획 사용 안내를 제공한다.
+계획을 비우면 설정 추적을 다시 시작해 마지막 연결 기체의 오프라인 타입을 반영한다.
+
+### 6.3 연결된 기체의 Boat 식별
+
+```text
+[Pixhawk / PX4]
+ Autopilot HEARTBEAT.type = 11
+             |
+             | MAVLink receive / vehicle creation
+             v
+[Connected Vehicle]
+ vehicleType = MAV_TYPE_SURFACE_BOAT
+             |
+             +--> QGCMAVLink::isBoat(11) ------> true
+             +--> Vehicle::boat() ------------> true
+             +--> Vehicle::rover() ------------> true
+             +--> QGCMAVLink::vehicleClass(11) -> RoverBoat(10)
+             |
+             | PlanMasterController::_activeVehicleChanged()
+             v
+[QGCMAVLink::vehicleTypeForOfflineEditing(11)]
+             |
+             v
+[Offline setting]
+ offlineEditingVehicleClass = 11
+```
+
+`QGCMAVLink::isBoat()`는 실제 MAV_TYPE이 `MAV_TYPE_SURFACE_BOAT`인지 비교한다.
+오프라인 Boat 선택은 연결된 PX4의 보고 타입을 변경하지 않는다.
+연결 기체를 뜻하는 `managerVehicle`과 계획 편집 대상을 뜻하는 `controllerVehicle`은 역할이 다르다.
+미저장 계획을 유지하는 동안 두 기체의 타입이 다를 수 있으며, 연결 타입으로 계획을 일괄 덮어쓰지 않는다.
+
+### 6.4 설정 저장과 계획 파일 저장·복원
+
+앱 설정과 계획 파일은 별도로 저장하고 복원한다.
+
+```text
+                  [Boat: vehicleType = 11]
+                             |
+                +------------+-------------+
+                |                          |
+                v                          v
+       [App settings / QSettings]    [Plan file / boat.plan]
+       offlineEditingVehicleClass    mission.vehicleType
+                   = 11                     = 11
+                |                          |
+                v                          v
+       [Quit / restart app]          [Open saved .plan]
+                |                          |
+                v                          v
+       [SettingsFact reads 11]       [MissionController loads 11]
+                |                          |
+                v                          v
+       [New offline Vehicle]         [controllerVehicle]
+       Boat selection restored       Boat type + waypoints restored
+```
+
+`SettingsFact::_rawValueChanged()`가 QSettings에 설정을 기록한다.
+일반 GUI 앱을 다시 실행하면 SettingsFact가 저장 값을 읽고, 새 오프라인 Vehicle이 그 타입을 반영한다.
+자동 테스트에서는 SettingsFact가 저장 값 대신 기본값으로 시작하므로,
+기존 자동 검증 결과와 실제 GUI 종료·재실행 수동 시험을 구분한다.
+
+다음 JSON은 전체 `.plan`이 아닌 타입 필드의 위치를 보여주는 발췌다.
+실제 파일에는 펌웨어·Home·미션 항목과 기타 계획 정보도 들어간다.
+
+```json
+{
+  "mission": {
+    "vehicleType": 11,
+    "items": []
+  }
+}
+```
+
+파일을 읽는 `MissionController::_loadJsonMissionFileV2()`는 실제 타입을 controllerVehicle에 적용한다.
+기체에 미연결 상태라면 오프라인 설정도 `vehicleTypeForOfflineEditing()`을 거쳐 갱신한다.
+구형 mission v2 파일에 `vehicleType`이 없으면 현재 오프라인 선택을 사용한다.
+앱 재실행 시의 기체 선택 보존과 저장한 경로 복원은 구분하며, WP와 경로는 `.plan` 파일을 다시 열어 확인한다.
+
+### 6.5 P1 변경 전후의 타입 보존
+
+기존에도 MAVLink와 `.plan` 파일에는 Boat 타입 11을 표현할 수 있었다.
+이번 변경은 별도 오프라인 Boat 선택을 제공하고, 실제 타입을 오프라인 설정으로 복사할 때 11을 보존한다.
+
+```text
+Before: copy actual type through the shared class
+
+ Boat(11)
+    |
+    v
+ vehicleClass(11) -> RoverBoat(10)
+    |
+    v
+ Save offline setting = 10
+    |
+    v
+ Recreate offline Vehicle -> Rover(10)
+
+
+P1: preserve Boat when choosing an offline representative type
+
+ Boat(11)
+    |
+    v
+ vehicleTypeForOfflineEditing(11)
+    |
+    | Boat -> keep MAV_TYPE_SURFACE_BOAT
+    v
+ Save offline setting = 11
+    |
+    v
+ Recreate offline Vehicle -> Boat(11)
+```
+
+Boat 이외 기체는 기존 대표 타입 정규화를 유지한다.
+예를 들어 Hexarotor의 오프라인 대표 타입은 기존과 같이 Quadrotor이며,
+`.plan`에 저장된 실제 세부 타입은 파일을 다시 읽을 때 별도로 복원한다.
+
+관련 코드:
+
+| 위치 | 역할 |
+| --- | --- |
+| [App.SettingsGroup.json](../../../src/Settings/App.SettingsGroup.json) | 오프라인·선호 기체 Fact의 Boat 선택지 |
+| [AppSettings.cc](../../../src/Settings/AppSettings.cc) | 선호 기체와 오프라인 설정 연동 |
+| [SettingsFact.cc](../../../src/FactSystem/SettingsFact.cc) | QSettings 저장 및 일반 앱 시작 시 읽기 |
+| [QGCMAVLink.cc](../../../src/MAVLink/QGCMAVLink.cc) | `isBoat`, 공통 클래스 분류, 오프라인 대표 타입 변환 |
+| [Vehicle.h](../../../src/Vehicle/Vehicle.h) / [Vehicle.cc](../../../src/Vehicle/Vehicle.cc) | QML 속성과 설정 변경 반영·알림 |
+| [PlanMasterController.cc](../../../src/MissionManager/PlanMasterController.cc) | 연결 기체에서 오프라인 설정으로 타입 복사 |
+| [MissionController.cc](../../../src/MissionManager/MissionController.cc) | 파일의 실제 타입 저장/복원과 편집 중 설정 추적 관리 |
