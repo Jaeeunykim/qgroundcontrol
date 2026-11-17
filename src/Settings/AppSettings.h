@@ -17,6 +17,7 @@ public:
     DEFINE_SETTING_NAME_GROUP()
 
     DEFINE_SETTINGFACT(preferredFirmwareClass)
+    // Historical keys store representative MAV_TYPE values, including distinct Rover and Boat types.
     DEFINE_SETTINGFACT(preferredVehicleClass)
     DEFINE_SETTINGFACT(offlineEditingFirmwareClass)
     DEFINE_SETTINGFACT(offlineEditingVehicleClass)

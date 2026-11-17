@@ -170,6 +170,16 @@ bool QGCMAVLink::isRoverBoat(MAV_TYPE mavType)
     return vehicleClass(mavType) == VehicleClassRoverBoat;
 }
 
+bool QGCMAVLink::isBoat(MAV_TYPE mavType)
+{
+    return mavType == MAV_TYPE_SURFACE_BOAT;
+}
+
+MAV_TYPE QGCMAVLink::vehicleTypeForOfflineEditing(MAV_TYPE mavType)
+{
+    return isBoat(mavType) ? MAV_TYPE_SURFACE_BOAT : vehicleClassToMavType(vehicleClass(mavType));
+}
+
 bool QGCMAVLink::isSpacecraft(MAV_TYPE mavType)
 {
     return vehicleClass(mavType) == VehicleClassSpacecraft;

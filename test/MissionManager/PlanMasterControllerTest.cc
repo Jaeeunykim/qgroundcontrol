@@ -1,22 +1,26 @@
 #include "PlanMasterControllerTest.h"
 
+#include <QtCore/QDateTime>
+#include <QtCore/QDir>
+#include <QtCore/QFile>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+#include <QtCore/QRegularExpression>
+#include <QtCore/QTemporaryDir>
+#include <QtTest/QSignalSpy>
+
 #include "AppSettings.h"
-#include "SurveyPlanCreator.h"
+#include "LinkManager.h"
 #include "MissionManager.h"
 #include "MultiSignalSpy.h"
 #include "MultiVehicleManager.h"
 #include "PlanMasterController.h"
 #include "QmlObjectListModel.h"
 #include "SettingsManager.h"
+#include "SurveyPlanCreator.h"
 #include "TakeoffMissionItem.h"
 #include "Vehicle.h"
-
-#include <QtCore/QDateTime>
-#include <QtCore/QDir>
-#include <QtCore/QFile>
-#include <QtCore/QRegularExpression>
-#include <QtCore/QTemporaryDir>
-#include <QtTest/QSignalSpy>
 
 void PlanMasterControllerTest::init()
 {
@@ -110,6 +114,197 @@ void PlanMasterControllerTest::_testActiveVehicleChanged()
     // This signal was affected by the defect - it wouldn't reach the subscriber. Here
     // we make sure it does.
     QVERIFY(spyMissionManager.onlyEmittedOnce("error"));
+}
+
+void PlanMasterControllerTest::_testConnectedVehicleType_data()
+{
+    QTest::addColumn<int>("firmwareType");
+    QTest::addColumn<int>("vehicleType");
+    QTest::addColumn<int>("offlineType");
+
+    for (const auto firmware : {MAV_AUTOPILOT_PX4, MAV_AUTOPILOT_ARDUPILOTMEGA}) {
+        const QByteArray prefix = firmware == MAV_AUTOPILOT_PX4 ? "px4-" : "apm-";
+        // MockLink's APM Boat/VTOL configurations currently load Copter parameters.
+        // Exercise Boat/VTOL with PX4 and Sub with its existing APM fixture.
+        if (firmware == MAV_AUTOPILOT_PX4) {
+            QTest::newRow((prefix + "boat").constData())
+                << int(firmware) << int(MAV_TYPE_SURFACE_BOAT) << int(MAV_TYPE_SURFACE_BOAT);
+            QTest::newRow((prefix + "vtol").constData())
+                << int(firmware) << int(MAV_TYPE_VTOL_TILTROTOR) << int(MAV_TYPE_VTOL_TAILSITTER_QUADROTOR);
+        } else {
+            QTest::newRow((prefix + "sub").constData())
+                << int(firmware) << int(MAV_TYPE_SUBMARINE) << int(MAV_TYPE_SUBMARINE);
+        }
+        QTest::newRow((prefix + "rover").constData())
+            << int(firmware) << int(MAV_TYPE_GROUND_ROVER) << int(MAV_TYPE_GROUND_ROVER);
+        QTest::newRow((prefix + "multirotor").constData())
+            << int(firmware) << int(MAV_TYPE_QUADROTOR) << int(MAV_TYPE_QUADROTOR);
+        QTest::newRow((prefix + "fixed-wing").constData())
+            << int(firmware) << int(MAV_TYPE_FIXED_WING) << int(MAV_TYPE_FIXED_WING);
+    }
+}
+
+void PlanMasterControllerTest::_testConnectedVehicleType()
+{
+    QFETCH(int, firmwareType);
+    QFETCH(int, vehicleType);
+    QFETCH(int, offlineType);
+    Fact* const offlineSetting = SettingsManager::instance()->appSettings()->offlineEditingVehicleClass();
+    offlineSetting->setRawValue(MAV_TYPE_SURFACE_BOAT);
+
+    auto* mockConfig = new MockConfiguration(QStringLiteral("Vehicle type regression"));
+    mockConfig->setDynamic(true);
+    mockConfig->setFirmwareType(static_cast<MAV_AUTOPILOT>(firmwareType));
+    mockConfig->setVehicleType(static_cast<MAV_TYPE>(vehicleType));
+    mockConfig->setSendStatusText(false);
+    mockConfig->setEnableCamera(false);
+    mockConfig->setEnableGimbal(false);
+    mockConfig->setEnableProximity(false);
+    SharedLinkConfigurationPtr config = LinkManager::instance()->addConfiguration(mockConfig);
+    QVERIFY(LinkManager::instance()->createConnectedLink(config));
+    _mockLink = qobject_cast<MockLink*>(config->link());
+    QVERIFY(_mockLink);
+    connect(_mockLink, &QObject::destroyed, this, [this]() { _mockLink = nullptr; });
+
+    QTRY_VERIFY_WITH_TIMEOUT(MultiVehicleManager::instance()->activeVehicle(), TestTimeout::longMs());
+    _vehicle = MultiVehicleManager::instance()->activeVehicle();
+    QVERIFY(_vehicle);
+    QTRY_VERIFY_WITH_TIMEOUT(_vehicle->isInitialConnectComplete(), TestTimeout::longMs());
+    QCOMPARE(int(_vehicle->vehicleType()), vehicleType);
+    QCOMPARE(_vehicle->boat(), vehicleType == MAV_TYPE_SURFACE_BOAT);
+    QCOMPARE(_vehicle->rover(), vehicleType == MAV_TYPE_SURFACE_BOAT || vehicleType == MAV_TYPE_GROUND_ROVER);
+    QCOMPARE(offlineSetting->rawValue().toInt(), offlineType);
+    QCOMPARE(int(_masterController->controllerVehicle()->vehicleType()), offlineType);
+
+    _disconnectMockLink();
+    QVERIFY(_masterController->offline());
+    QCOMPARE(offlineSetting->rawValue().toInt(), offlineType);
+    QCOMPARE(int(_masterController->controllerVehicle()->vehicleType()), offlineType);
+    QCOMPARE(_masterController->controllerVehicle()->boat(), vehicleType == MAV_TYPE_SURFACE_BOAT);
+}
+
+void PlanMasterControllerTest::_testOfflinePlanVehicleType_data()
+{
+    QTest::addColumn<int>("vehicleType");
+    QTest::addColumn<int>("offlineType");
+    QTest::addColumn<bool>("legacy");
+
+    for (const bool legacy : {false, true}) {
+        const QByteArray prefix = legacy ? "legacy-" : "typed-";
+        QTest::newRow((prefix + "boat").constData())
+            << int(MAV_TYPE_SURFACE_BOAT) << int(MAV_TYPE_SURFACE_BOAT) << legacy;
+        QTest::newRow((prefix + "rover").constData())
+            << int(MAV_TYPE_GROUND_ROVER) << int(MAV_TYPE_GROUND_ROVER) << legacy;
+        QTest::newRow((prefix + "multirotor").constData())
+            << int(MAV_TYPE_QUADROTOR) << int(MAV_TYPE_QUADROTOR) << legacy;
+        QTest::newRow((prefix + "hexarotor").constData())
+            << int(MAV_TYPE_HEXAROTOR) << int(MAV_TYPE_QUADROTOR) << legacy;
+        QTest::newRow((prefix + "fixed-wing").constData())
+            << int(MAV_TYPE_FIXED_WING) << int(MAV_TYPE_FIXED_WING) << legacy;
+        QTest::newRow((prefix + "vtol").constData())
+            << int(MAV_TYPE_VTOL_TILTROTOR) << int(MAV_TYPE_VTOL_TAILSITTER_QUADROTOR) << legacy;
+        QTest::newRow((prefix + "sub").constData()) << int(MAV_TYPE_SUBMARINE) << int(MAV_TYPE_SUBMARINE) << legacy;
+        QTest::newRow((prefix + "unknown").constData()) << int(MAV_TYPE_GENERIC) << int(MAV_TYPE_GENERIC) << legacy;
+    }
+}
+
+void PlanMasterControllerTest::_testOfflinePlanVehicleType()
+{
+    QFETCH(int, vehicleType);
+    QFETCH(int, offlineType);
+    QFETCH(bool, legacy);
+    Fact* const offlineSetting = SettingsManager::instance()->appSettings()->offlineEditingVehicleClass();
+    offlineSetting->setRawValue(MAV_TYPE_SURFACE_BOAT);
+    _masterController->missionController()->insertSimpleMissionItem(QGeoCoordinate(47.0, 8.0, 0.0), 1, false);
+
+    // Use the normal save path, then model an existing file with a specific MAV_TYPE
+    // (including subtypes such as hexarotor), or an older file with no vehicleType.
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    const QString filename = tempDir.filePath(QStringLiteral("vehicle.plan"));
+    QVERIFY(_masterController->saveToFile(filename));
+    QFile file(filename);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QJsonObject plan = QJsonDocument::fromJson(file.readAll()).object();
+    file.close();
+    QJsonObject mission = plan[QStringLiteral("mission")].toObject();
+    QCOMPARE(mission[QStringLiteral("vehicleType")].toInt(), int(MAV_TYPE_SURFACE_BOAT));
+    const QJsonArray originalItems = mission[QStringLiteral("items")].toArray();
+    QVERIFY(!originalItems.isEmpty());
+    if (legacy) {
+        mission.remove(QStringLiteral("vehicleType"));
+        offlineSetting->setRawValue(offlineType);
+    } else {
+        mission[QStringLiteral("vehicleType")] = vehicleType;
+        // Loading another vehicle's plan must replace a previous Boat selection.
+        offlineSetting->setRawValue(vehicleType == MAV_TYPE_SURFACE_BOAT ? MAV_TYPE_GROUND_ROVER
+                                                                         : MAV_TYPE_SURFACE_BOAT);
+    }
+    plan[QStringLiteral("mission")] = mission;
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    QVERIFY(file.write(QJsonDocument(plan).toJson()) > 0);
+    file.close();
+
+    _masterController->loadFromFile(filename);
+    const int expectedType = legacy ? offlineType : vehicleType;
+    QCOMPARE(int(_masterController->controllerVehicle()->vehicleType()), expectedType);
+    QCOMPARE(_masterController->controllerVehicle()->boat(), expectedType == MAV_TYPE_SURFACE_BOAT);
+    QCOMPARE(offlineSetting->rawValue().toInt(), offlineType);
+    QCOMPARE(_masterController->missionController()->visualItems()->count(), 2);
+
+    // Saving again must retain the actual file type and all command/frame/parameter values.
+    QVERIFY(_masterController->saveToFile(filename));
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    mission = QJsonDocument::fromJson(file.readAll()).object()[QStringLiteral("mission")].toObject();
+    file.close();
+    QCOMPARE(mission[QStringLiteral("vehicleType")].toInt(), expectedType);
+    QCOMPARE(mission[QStringLiteral("items")].toArray(), originalItems);
+
+    // A fresh controller uses the persisted representative type; reopening the plan
+    // restores its exact MAV_TYPE even when it is a more specific aircraft subtype.
+    delete _masterController;
+    _masterController = new PlanMasterController(this);
+    _masterController->setFlyView(false);
+    _masterController->start();
+    QCOMPARE(int(_masterController->controllerVehicle()->vehicleType()), offlineType);
+    _masterController->loadFromFile(filename);
+    QCOMPARE(int(_masterController->controllerVehicle()->vehicleType()), expectedType);
+    QCOMPARE(offlineSetting->rawValue().toInt(), offlineType);
+}
+
+void PlanMasterControllerTest::_testDirtyBoatPlanVehicleSwitch()
+{
+    Fact* const offlineSetting = SettingsManager::instance()->appSettings()->offlineEditingVehicleClass();
+    offlineSetting->setRawValue(MAV_TYPE_SURFACE_BOAT);
+    _masterController->missionController()->insertSimpleMissionItem(QGeoCoordinate(47.0, 8.0, 0.0), 1, false);
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    const QString filename = tempDir.filePath(QStringLiteral("boat.plan"));
+    QVERIFY(_masterController->saveToFile(filename));
+    _masterController->loadFromFile(filename);
+    _masterController->missionController()->insertSimpleMissionItem(QGeoCoordinate(47.001, 8.001, 0.0), 2, false);
+    QVERIFY(_masterController->dirtyForSave());
+    const QJsonObject originalMission = _masterController->saveToJson().object()[QStringLiteral("mission")].toObject();
+    QSignalSpy prompt(_masterController, &PlanMasterController::promptForPlanUsageOnVehicleChange);
+    QVERIFY(prompt.isValid());
+
+    _connectMockLink(MAV_AUTOPILOT_PX4);
+    QVERIFY(_vehicle);
+    QVERIFY(_vehicle->multiRotor());
+    QCOMPARE(prompt.count(), 1);
+    QCOMPARE(offlineSetting->rawValue().toInt(), int(MAV_TYPE_QUADROTOR));
+    QVERIFY(_masterController->controllerVehicle()->boat());
+    QCOMPARE(_masterController->saveToJson().object()[QStringLiteral("mission")].toObject(), originalMission);
+
+    _disconnectMockLink();
+    QCOMPARE(prompt.count(), 2);
+    QVERIFY(_masterController->controllerVehicle()->boat());
+    QCOMPARE(_masterController->saveToJson().object()[QStringLiteral("mission")].toObject(), originalMission);
+
+    // Clearing the retained Boat plan returns to the last connected vehicle's type.
+    _masterController->removeAll();
+    QCOMPARE(int(_masterController->controllerVehicle()->vehicleType()), int(MAV_TYPE_QUADROTOR));
+    QVERIFY(!_masterController->controllerVehicle()->boat());
 }
 
 void PlanMasterControllerTest::_testDirtyFlagsMatrix_data()

@@ -32,4 +32,5 @@ private slots:
     // SettingsFixture
     void _testSettingsFixtureRestore();
     void _testSettingsFixtureFactValue();
+    void _testSettingsFixtureBoatRestore();
 };

@@ -93,6 +93,35 @@ void QGCMAVLinkTest::_testVehicleClassRoverBoatCovers()
     QCOMPARE(QGCMAVLink::vehicleClass(MAV_TYPE_SURFACE_BOAT), QGCMAVLink::VehicleClassRoverBoat);
 }
 
+void QGCMAVLinkTest::_testOfflineVehicleType_data()
+{
+    QTest::addColumn<int>("vehicleType");
+    QTest::addColumn<int>("offlineType");
+    QTest::addColumn<bool>("boat");
+
+    QTest::newRow("boat") << int(MAV_TYPE_SURFACE_BOAT) << int(MAV_TYPE_SURFACE_BOAT) << true;
+    QTest::newRow("rover") << int(MAV_TYPE_GROUND_ROVER) << int(MAV_TYPE_GROUND_ROVER) << false;
+    QTest::newRow("multirotor") << int(MAV_TYPE_QUADROTOR) << int(MAV_TYPE_QUADROTOR) << false;
+    QTest::newRow("hexarotor") << int(MAV_TYPE_HEXAROTOR) << int(MAV_TYPE_QUADROTOR) << false;
+    QTest::newRow("fixed-wing") << int(MAV_TYPE_FIXED_WING) << int(MAV_TYPE_FIXED_WING) << false;
+    QTest::newRow("vtol") << int(MAV_TYPE_VTOL_TILTROTOR) << int(MAV_TYPE_VTOL_TAILSITTER_QUADROTOR) << false;
+    QTest::newRow("sub") << int(MAV_TYPE_SUBMARINE) << int(MAV_TYPE_SUBMARINE) << false;
+    QTest::newRow("generic") << int(MAV_TYPE_GENERIC) << int(MAV_TYPE_GENERIC) << false;
+    QTest::newRow("unknown") << 255 << int(MAV_TYPE_GENERIC) << false;
+}
+
+void QGCMAVLinkTest::_testOfflineVehicleType()
+{
+    QFETCH(int, vehicleType);
+    QFETCH(int, offlineType);
+    QFETCH(bool, boat);
+
+    const auto type = static_cast<MAV_TYPE>(vehicleType);
+    QCOMPARE(QGCMAVLink::isBoat(type), boat);
+    QCOMPARE(int(QGCMAVLink::vehicleTypeForOfflineEditing(type)), offlineType);
+    QCOMPARE(QGCMAVLink::vehicleClass(type), QGCMAVLink::vehicleClass(static_cast<MAV_TYPE>(offlineType)));
+}
+
 void QGCMAVLinkTest::_testVehicleClassGenericFallback()
 {
     // Types with no explicit mapping (e.g. ANTENNA_TRACKER, GCS, KITE) fall

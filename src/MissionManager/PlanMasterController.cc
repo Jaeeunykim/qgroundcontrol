@@ -127,7 +127,8 @@ void PlanMasterController::_activeVehicleChanged(Vehicle* activeVehicle)
         // Update controllerVehicle to the currently connected vehicle
         AppSettings* appSettings = SettingsManager::instance()->appSettings();
         appSettings->offlineEditingFirmwareClass()->setRawValue(QGCMAVLink::firmwareClass(_managerVehicle->firmwareType()));
-        appSettings->offlineEditingVehicleClass()->setRawValue(QGCMAVLink::vehicleClass(_managerVehicle->vehicleType()));
+        appSettings->offlineEditingVehicleClass()->setRawValue(
+            QGCMAVLink::vehicleTypeForOfflineEditing(_managerVehicle->vehicleType()));
 
         // We use these signals to sequence upload and download to the multiple controller/managers
         connect(_managerVehicle,                        &Vehicle::initialPlanRequestCompleteChanged, this, &PlanMasterController::_initialPlanRequestCompleteChanged);

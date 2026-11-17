@@ -49,12 +49,17 @@ public:
     static bool                     isAirship                   (MAV_TYPE mavType);
     static bool                     isFixedWing                 (MAV_TYPE mavType);
     static bool                     isRoverBoat                 (MAV_TYPE mavType);
+    static bool isBoat(MAV_TYPE mavType);
     static bool                     isSub                       (MAV_TYPE mavType);
     static bool                     isSpacecraft                (MAV_TYPE mavType);
     static bool                     isMultiRotor                (MAV_TYPE mavType);
     static bool                     isVTOL                      (MAV_TYPE mavType);
-    static VehicleClass_t           vehicleClass                (MAV_TYPE mavType);
-    static MAV_TYPE                 vehicleClassToMavType       (VehicleClass_t vehicleClass) { return static_cast<MAV_TYPE>(vehicleClass); }
+    static VehicleClass_t vehicleClass(MAV_TYPE mavType);
+
+    static MAV_TYPE vehicleClassToMavType(VehicleClass_t vehicleClass) { return static_cast<MAV_TYPE>(vehicleClass); }
+
+    /// Representative type for offline settings, preserving Boat within the shared RoverBoat class.
+    static MAV_TYPE vehicleTypeForOfflineEditing(MAV_TYPE mavType);
     static QString                  vehicleClassToUserVisibleString(VehicleClass_t vehicleClass);
     static QString                  vehicleClassToInternalString(VehicleClass_t vehicleClass);
     static const char*              vehicleClassToCanonicalString(VehicleClass_t vehicleClass);

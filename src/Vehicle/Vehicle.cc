@@ -1745,6 +1745,11 @@ bool Vehicle::rover() const
     return QGCMAVLink::isRoverBoat(vehicleType());
 }
 
+bool Vehicle::boat() const
+{
+    return QGCMAVLink::isBoat(vehicleType());
+}
+
 bool Vehicle::sub() const
 {
     return QGCMAVLink::isSub(vehicleType());

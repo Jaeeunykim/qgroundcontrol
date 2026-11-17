@@ -125,16 +125,24 @@ void PlanViewUITest::_verifyWaypointToolAddsWaypointOnEmptyPlan(bool expectTakeo
              "Map click with Waypoint tool armed moved the home position");
 }
 
-void PlanViewUITest::_testRoverWaypointOnEmptyPlan()
+void PlanViewUITest::_testRoverBoatWaypointOnEmptyPlan_data()
 {
-    // Rover has no takeoff item, so the Waypoint tool is the first insert tool
+    QTest::addColumn<int>("vehicleType");
+    QTest::newRow("rover") << int(MAV_TYPE_GROUND_ROVER);
+    QTest::newRow("boat") << int(MAV_TYPE_SURFACE_BOAT);
+}
+
+void PlanViewUITest::_testRoverBoatWaypointOnEmptyPlan()
+{
+    QFETCH(int, vehicleType);
+    // Rover and Boat have no takeoff item, so the Waypoint tool is the first insert tool
     // available on an empty plan.
-    SettingsManager::instance()->appSettings()->offlineEditingVehicleClass()->setRawValue(QGCMAVLink::VehicleClassRoverBoat);
+    SettingsManager::instance()->appSettings()->offlineEditingVehicleClass()->setRawValue(vehicleType);
 
     _verifyWaypointToolAddsWaypointOnEmptyPlan(false /* expectTakeoffButtonVisible */);
     if (QTest::currentTestFailed()) return;
 
-    // Rover Land tool inserts RTL, so the label must read Return (issue #14957)
+    // The shared Rover/Boat Land tool inserts RTL, so the label must read Return (issue #14957)
     verifyText(QStringLiteral("planToolStrip_landButton"), QStringLiteral("Return"), QStringLiteral("rover land tool"));
 }
 

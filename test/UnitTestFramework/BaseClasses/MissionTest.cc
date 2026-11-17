@@ -91,7 +91,8 @@ void OfflineMissionTest::init()
     // Configure offline editing settings
     AppSettings* appSettings = SettingsManager::instance()->appSettings();
     appSettings->offlineEditingFirmwareClass()->setRawValue(QGCMAVLink::firmwareClass(_offlineFirmwareType));
-    appSettings->offlineEditingVehicleClass()->setRawValue(QGCMAVLink::vehicleClass(_offlineVehicleType));
+    appSettings->offlineEditingVehicleClass()->setRawValue(
+        QGCMAVLink::vehicleTypeForOfflineEditing(_offlineVehicleType));
 
     _planController = new PlanMasterController(this);
     _planController->setFlyView(false);

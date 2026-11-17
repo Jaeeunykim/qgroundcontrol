@@ -168,6 +168,7 @@ public:
     Q_PROPERTY(bool                 multiRotor                  READ multiRotor                                                     NOTIFY vehicleTypeChanged)
     Q_PROPERTY(bool                 vtol                        READ vtol                                                           NOTIFY vehicleTypeChanged)
     Q_PROPERTY(bool                 rover                       READ rover                                                          NOTIFY vehicleTypeChanged)
+    Q_PROPERTY(bool boat READ boat NOTIFY vehicleTypeChanged)
     Q_PROPERTY(bool                 sub                         READ sub                                                            NOTIFY vehicleTypeChanged)
     Q_PROPERTY(VehicleSupports*     supports                    READ supports                                                       CONSTANT)
     Q_PROPERTY(QString              prearmError                 READ prearmError                WRITE setPrearmError                NOTIFY prearmErrorChanged)
@@ -467,6 +468,8 @@ public:
     bool multiRotor() const;
     bool vtol() const;
     bool rover() const;
+    /// Boat-specific identity; rover() remains true for the shared ground-vehicle behavior.
+    bool boat() const;
     bool sub() const;
     bool spacecraft() const;
 

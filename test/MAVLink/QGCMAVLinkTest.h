@@ -23,6 +23,8 @@ private slots:
     void _testVehicleClassClassification();
     void _testVehicleClassVTOL();
     void _testVehicleClassRoverBoatCovers();
+    void _testOfflineVehicleType_data();
+    void _testOfflineVehicleType();
     void _testVehicleClassGenericFallback();
     void _testVehicleClassToString();
     void _testVehicleClassInternalString();

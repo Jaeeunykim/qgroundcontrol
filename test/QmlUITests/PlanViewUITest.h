@@ -21,7 +21,8 @@ public:
 private slots:
     void _testPlanViewStates();
     void _testSaveAsMenu();
-    void _testRoverWaypointOnEmptyPlan();
+    void _testRoverBoatWaypointOnEmptyPlan_data();
+    void _testRoverBoatWaypointOnEmptyPlan();
     void _testTakeoffNotRequiredWaypointOnEmptyPlan();
 
 private:

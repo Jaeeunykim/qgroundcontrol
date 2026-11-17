@@ -30,8 +30,7 @@ SettingsFixture::SettingsFixture()
     _originalFirmware = static_cast<MAV_AUTOPILOT>(QGCMAVLink::firmwareClassToAutopilot(
         static_cast<QGCMAVLink::FirmwareClass_t>(appSettings->offlineEditingFirmwareClass()->rawValue().toInt())));
 
-    _originalVehicleType = static_cast<MAV_TYPE>(QGCMAVLink::vehicleClassToMavType(
-        static_cast<QGCMAVLink::VehicleClass_t>(appSettings->offlineEditingVehicleClass()->rawValue().toInt())));
+    _originalVehicleType = static_cast<MAV_TYPE>(appSettings->offlineEditingVehicleClass()->rawValue().toInt());
 }
 
 SettingsFixture::~SettingsFixture()
@@ -41,7 +40,7 @@ SettingsFixture::~SettingsFixture()
 
     appSettings->offlineEditingFirmwareClass()->setRawValue(QGCMAVLink::firmwareClass(_originalFirmware));
 
-    appSettings->offlineEditingVehicleClass()->setRawValue(QGCMAVLink::vehicleClass(_originalVehicleType));
+    appSettings->offlineEditingVehicleClass()->setRawValue(_originalVehicleType);
 
     // Restore any saved Fact values
     for (const SavedFact& saved : _savedFacts) {
@@ -60,7 +59,7 @@ void SettingsFixture::setOfflineFirmware(MAV_AUTOPILOT autopilot)
 void SettingsFixture::setOfflineVehicleType(MAV_TYPE vehicleType)
 {
     AppSettings* appSettings = SettingsManager::instance()->appSettings();
-    appSettings->offlineEditingVehicleClass()->setRawValue(QGCMAVLink::vehicleClass(vehicleType));
+    appSettings->offlineEditingVehicleClass()->setRawValue(QGCMAVLink::vehicleTypeForOfflineEditing(vehicleType));
 }
 
 void SettingsFixture::setFactValue(Fact* fact, const QVariant& value)

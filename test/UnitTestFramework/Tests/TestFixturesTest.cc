@@ -291,4 +291,18 @@ void TestFixturesTest::_testSettingsFixtureFactValue()
     QCOMPARE(testFact->rawValue(), originalValue);
 }
 
+void TestFixturesTest::_testSettingsFixtureBoatRestore()
+{
+    SettingsFixture outerSettings;
+    outerSettings.setOfflineVehicleType(MAV_TYPE_SURFACE_BOAT);
+    Fact* const vehicleType = SettingsManager::instance()->appSettings()->offlineEditingVehicleClass();
+    QCOMPARE(vehicleType->rawValue().toInt(), int(MAV_TYPE_SURFACE_BOAT));
+    {
+        SettingsFixture innerSettings;
+        innerSettings.setOfflineVehicleType(MAV_TYPE_GROUND_ROVER);
+        QCOMPARE(vehicleType->rawValue().toInt(), int(MAV_TYPE_GROUND_ROVER));
+    }
+    QCOMPARE(vehicleType->rawValue().toInt(), int(MAV_TYPE_SURFACE_BOAT));
+}
+
 UT_REGISTER_TEST(TestFixturesTest, TestLabel::Unit)
