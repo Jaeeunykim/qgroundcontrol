@@ -44,6 +44,12 @@ See the [implementation plan](docs/development/boat/IMPLEMENTATION_PLAN.md) for 
 tests, and completion criteria, and the [telemetry contract draft](docs/development/boat/TELEMETRY_CONTRACT.md)
 for message semantics and decisions required with the PX4 team. Detailed working documents are in Korean.
 
+## badaMux product communication specification
+
+The separate [badaMux product specification](docs/product/badamux/README.md) covers vessel equipment,
+PX4 integration, manual control, autonomous operation, message schemas, and acceptance tests.
+It is a product protocol proposal, not a dependency or an upstream feature of generic QGC Boat support.
+
 ## Download
 
 Grab the latest stable build for your platform, or see all assets on the
