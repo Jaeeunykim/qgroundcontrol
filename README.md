@@ -26,6 +26,24 @@ and mission planning for any *MAVLink-enabled* drone, including *PX4* and *ArduP
 - **MAVLink tooling** — built-in MAVLink Inspector, console, and log download/analysis.
 - **Cross-platform** — Windows, macOS, Linux, Android, and iOS from a single codebase.
 
+## Boat support development
+
+This fork is preparing general-purpose Boat support improvements for contribution to upstream QGC.
+The working baseline is **v5.1.5** on **`feature/boat`**. These changes are planned; they are not yet
+implemented or accepted upstream. The first integration target is **PX4/Pixhawk ↔ MAVLink ↔ QGC**.
+Boat support must remain independent of the vessel's onboard equipment, including badaMux.
+
+- [ ] Define the PX4-to-QGC telemetry contract and record the tested firmware and MAVLink versions.
+- [ ] Preserve Boat identity during connection, offline planning, plan save/load, and vehicle switching.
+- [ ] Adapt guided actions and mission execution to supported Boat operations.
+- [ ] Adapt QML mission editors, speed settings, default instruments, and user-facing wording.
+- [ ] Verify missing/stale telemetry, disconnect/reconnect, and Rover/aircraft compatibility.
+- [ ] Prepare focused upstream PRs with tests, UI evidence, and documented limitations.
+
+See the [implementation plan](docs/development/boat/IMPLEMENTATION_PLAN.md) for QML scope, staged
+tests, and completion criteria, and the [telemetry contract draft](docs/development/boat/TELEMETRY_CONTRACT.md)
+for message semantics and decisions required with the PX4 team. Detailed working documents are in Korean.
+
 ## Download
 
 Grab the latest stable build for your platform, or see all assets on the
