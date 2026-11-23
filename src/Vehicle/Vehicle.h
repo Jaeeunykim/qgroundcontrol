@@ -108,6 +108,7 @@ class Vehicle : public VehicleFactGroup, public VehicleTypes
     friend class FactGroupListModel;                // Allow call _addFactGroup
 #ifdef QGC_UNITTEST_BUILD
     friend class SendMavCommandWithSignallingTest;  // Unit test
+    friend class BoatNavigationTest;                // Unit test
     friend class SendMavCommandWithHandlerTest;     // Unit test
     friend class RequestMessageTest;                // Unit test
     friend class RetryableRequestMessageStateTest;  // Unit test

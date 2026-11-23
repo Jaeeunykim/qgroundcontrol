@@ -1841,6 +1841,10 @@ void Vehicle::guidedModeRTL(bool smartRTL)
 
 void Vehicle::guidedModeLand()
 {
+    if (boat()) {
+        QGC::showAppMessage(tr("This action is not supported for boats."));
+        return;
+    }
     if (!_vehicleSupports->guidedMode()) {
         QGC::showAppMessage(guided_mode_not_supported_by_vehicle);
         return;
@@ -1850,6 +1854,10 @@ void Vehicle::guidedModeLand()
 
 void Vehicle::guidedModeTakeoff(double altitudeRelative)
 {
+    if (boat()) {
+        QGC::showAppMessage(tr("This action is not supported for boats."));
+        return;
+    }
     if (!_vehicleSupports->guidedMode()) {
         QGC::showAppMessage(guided_mode_not_supported_by_vehicle);
         return;
@@ -1886,6 +1894,10 @@ bool Vehicle::hasGripper()  const
 
 void Vehicle::startTakeoff()
 {
+    if (boat()) {
+        QGC::showAppMessage(tr("This action is not supported for boats."));
+        return;
+    }
     _firmwarePlugin->startTakeoff(this);
 }
 
@@ -1918,6 +1930,10 @@ bool Vehicle::guidedModeGotoLocation(const QGeoCoordinate& gotoCoord, double for
 
 void Vehicle::guidedModeChangeAltitude(double altitudeChange, bool pauseVehicle)
 {
+    if (boat()) {
+        QGC::showAppMessage(tr("This action is not supported for boats."));
+        return;
+    }
     if (!_vehicleSupports->guidedMode()) {
         QGC::showAppMessage(guided_mode_not_supported_by_vehicle);
         return;
@@ -2060,6 +2076,10 @@ void Vehicle::pauseVehicle()
 
 void Vehicle::abortLanding(double climbOutAltitude)
 {
+    if (boat()) {
+        QGC::showAppMessage(tr("This action is not supported for boats."));
+        return;
+    }
     sendMavCommand(
                 defaultComponentId(),
                 MAV_CMD_DO_GO_AROUND,

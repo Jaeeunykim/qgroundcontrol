@@ -387,7 +387,10 @@ bool PX4FirmwarePlugin::guidedModeGotoLocation(Vehicle* vehicle, const QGeoCoord
     // MAV_CMD_DO_REPOSITION
     Q_UNUSED(forwardFlightLoiterRadius)
 
-    if (qIsNaN(vehicle->altitudeAMSL()->rawValue().toDouble())) {
+    // PX4 retains its current altitude when DO_REPOSITION param7 is NaN.
+    // Boat navigation must not depend on altitude telemetry or request a vertical move.
+    const float gotoAltitude = vehicle->boat() ? qQNaN() : vehicle->altitudeAMSL()->rawValue().toFloat();
+    if (!vehicle->boat() && qIsNaN(gotoAltitude)) {
         QGC::showAppMessage(tr("Unable to go to location, vehicle position not known."));
         return false;
     }
@@ -403,7 +406,7 @@ bool PX4FirmwarePlugin::guidedModeGotoLocation(Vehicle* vehicle, const QGeoCoord
                                    NAN,
                                    gotoCoord.latitude(),
                                    gotoCoord.longitude(),
-                                   vehicle->altitudeAMSL()->rawValue().toFloat());
+                                   gotoAltitude);
     } else {
         vehicle->sendMavCommand(vehicle->defaultComponentId(),
                                 MAV_CMD_DO_REPOSITION,
@@ -414,7 +417,7 @@ bool PX4FirmwarePlugin::guidedModeGotoLocation(Vehicle* vehicle, const QGeoCoord
                                 NAN,
                                 static_cast<float>(gotoCoord.latitude()),
                                 static_cast<float>(gotoCoord.longitude()),
-                                vehicle->altitudeAMSL()->rawValue().toFloat());
+                                gotoAltitude);
     }
 
     return true;

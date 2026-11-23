@@ -2023,6 +2023,12 @@ void MockLink::_handleCommandLong(const mavlink_message_t &msg)
     uint8_t commandResult = MAV_RESULT_UNSUPPORTED;
 
     switch (request.command) {
+    case MAV_CMD_DO_REPOSITION:
+        if (!_respondToRepositionCommand) {
+            return;
+        }
+        commandResult = _repositionCommandResult;
+        break;
     case MAV_CMD_COMPONENT_ARM_DISARM:
         if (request.param1 == 0.0f) {
             _mavBaseMode &= ~MAV_MODE_FLAG_SAFETY_ARMED;
@@ -2191,6 +2197,12 @@ void MockLink::_handleCommandInt(const mavlink_message_t &msg)
     uint8_t commandResult = MAV_RESULT_UNSUPPORTED;
 
     switch (request.command) {
+    case MAV_CMD_DO_REPOSITION:
+        if (!_respondToRepositionCommand) {
+            return;
+        }
+        commandResult = _repositionCommandResult;
+        break;
     case MAV_CMD_DO_SET_MODE:
         // Preserve the armed flag like real firmware does
         _mavBaseMode = (_mavBaseMode & MAV_MODE_FLAG_SAFETY_ARMED) | static_cast<uint8_t>(request.param1);

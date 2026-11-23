@@ -102,6 +102,13 @@ public:
 
     void clearReceivedMavCommandCounts() { _receivedMavCommandCountMap.clear(); _receivedMavCommandByCompCountMap.clear(); _receivedRequestMessageByCompAndMsgCountMap.clear(); }
     int receivedMavCommandCount(MAV_CMD command) const { return _receivedMavCommandCountMap.value(command, 0); }
+
+    /// Test API: model a reposition ACK (or silence) without simulating a completed maneuver.
+    void setRepositionCommandResponse(MAV_RESULT result, bool respond = true)
+    {
+        _repositionCommandResult = result;
+        _respondToRepositionCommand = respond;
+    }
     int receivedMavCommandCount(MAV_CMD command, int compId) const { return _receivedMavCommandByCompCountMap.value(command).value(compId, 0); }
     int receivedRequestMessageCount(int compId, int messageId) const { return _receivedRequestMessageByCompAndMsgCountMap.value(compId).value(messageId, 0); }
     void clearReceivedRequestMessageCounts() { _receivedRequestMessageCountMap.clear(); _receivedRequestMessageByCompAndMsgCountMap.clear(); }
@@ -493,6 +500,8 @@ private:
     std::array<RCChannelOverride, kRcChannelOverrideChannelCount> _rcChannelOverrides;
 
     QMap<MAV_CMD, int> _receivedMavCommandCountMap;
+    MAV_RESULT _repositionCommandResult = MAV_RESULT_UNSUPPORTED;
+    bool _respondToRepositionCommand = true;
     QMap<MAV_CMD, QMap<int, int>> _receivedMavCommandByCompCountMap;
     QMap<uint32_t, int> _receivedRequestMessageCountMap;
     QMap<int, QMap<int, int>> _receivedRequestMessageByCompAndMsgCountMap;

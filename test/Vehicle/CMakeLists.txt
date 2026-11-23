@@ -9,6 +9,8 @@ target_sources(${CMAKE_PROJECT_NAME}
         APMAirframeComponentControllerTest.h
         APMStartMissionTest.cc
         APMStartMissionTest.h
+        BoatNavigationTest.cc
+        BoatNavigationTest.h
         FTPManagerTest.cc
         FTPManagerTest.h
         FTPControllerTest.cc
@@ -56,6 +58,7 @@ add_subdirectory(ComponentInformation)
 
 add_qgc_test(APMAirframeComponentControllerTest LABELS Integration Vehicle)
 add_qgc_test(APMStartMissionTest LABELS Integration Vehicle)
+add_qgc_test(BoatNavigationTest LABELS Integration Vehicle TIMEOUT 180)
 add_qgc_test(FTPControllerTest LABELS Integration Vehicle RESOURCE_LOCK TempFiles)
 add_qgc_test(FTPManagerTest LABELS Integration Vehicle)
 add_qgc_test(FirmwareUpgradeControllerTest LABELS Unit Vehicle)

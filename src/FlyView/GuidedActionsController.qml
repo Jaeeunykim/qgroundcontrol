@@ -57,8 +57,8 @@ Item {
     readonly property string mvDisarmMessage:                   qsTr("Disarm selected vehicles.")
     readonly property string emergencyStopMessage:              qsTr("WARNING: THIS WILL STOP ALL MOTORS. IF VEHICLE IS CURRENTLY IN THE AIR IT WILL CRASH.")
     readonly property string takeoffMessage:                    qsTr("Takeoff and hold position")
-    readonly property string startMissionMessage:               qsTr("Takeoff and start the current mission")
-    readonly property string mvStartMissionMessage:             qsTr("Takeoff and start the current mission for selected vehicles")
+    readonly property string startMissionMessage:               _vehicleIsBoat ? qsTr("Start the current mission") : qsTr("Takeoff and start the current mission")
+    readonly property string mvStartMissionMessage:             _selectedVehiclesIncludeBoat ? qsTr("Start the current mission for selected vehicles") : qsTr("Takeoff and start the current mission for selected vehicles")
     readonly property string continueMissionMessage:            qsTr("Continue the mission from the current waypoint")
     readonly property string resumeMissionUploadFailMessage:    qsTr("Upload of resume mission failed. Confirm to retry upload")
     readonly property string landMessage:                       qsTr("Land the vehicle at the current position")
@@ -112,6 +112,19 @@ Item {
     readonly property int customActionStart:                10000 // Custom actions ids should start here so that they don't collide with the built in actions
 
     property var    _activeVehicle:             QGroundControl.multiVehicleManager.activeVehicle
+    property var    _selectedVehicles:          QGroundControl.multiVehicleManager.selectedVehicles
+    readonly property bool _vehicleIsBoat:      _activeVehicle ? _activeVehicle.boat : false
+    readonly property bool _communicationLost:  _activeVehicle ? _activeVehicle.vehicleLinkManager.communicationLost : false
+    readonly property bool _vehicleCanNavigate: _vehicleIsBoat ? _vehicleArmed : _vehicleFlying
+    readonly property bool _selectedVehiclesIncludeBoat: {
+        for (var i = 0; i < _selectedVehicles.count; i++) {
+            var selectedVehicle = _selectedVehicles.get(i)
+            if (selectedVehicle && selectedVehicle.boat) {
+                return true
+            }
+        }
+        return false
+    }
     property var    _flyViewSettings:           QGroundControl.settingsManager.flyViewSettings
     property var    _unitsConversion:           QGroundControl.unitsConversion
     property bool   _useChecklist:              QGroundControl.settingsManager.appSettings.useChecklist.rawValue && QGroundControl.corePlugin.options.preFlightChecklistUrl.toString().length
@@ -126,19 +139,21 @@ Item {
     property bool showArm:                  _guidedActionsEnabled && !_vehicleArmed && _canArm
     property bool showForceArm:             _guidedActionsEnabled && !_vehicleArmed
     property bool showDisarm:               _guidedActionsEnabled && _vehicleArmed && !_vehicleFlying
-    property bool showRTL:                  _guidedActionsEnabled && _activeVehicle && _vehicleArmed && _activeVehicle.supports.guidedMode && _vehicleFlying && !_vehicleInRTLMode
-    property bool showTakeoff:              _guidedActionsEnabled && _activeVehicle && (_activeVehicle.supports.guidedTakeoffWithAltitude || _activeVehicle.supports.guidedTakeoffWithoutAltitude) && !_vehicleFlying && _canTakeoff
-    property bool showLand:                 _guidedActionsEnabled && _activeVehicle && _activeVehicle.supports.guidedMode && _vehicleArmed && !_activeVehicle.fixedWing && !_vehicleInLandMode
-    property bool showStartMission:         _guidedActionsEnabled && _missionAvailable && !_missionActive && !_vehicleFlying && _canStartMission
-    property bool showContinueMission:      _guidedActionsEnabled && _missionAvailable && !_missionActive && _vehicleArmed && _vehicleFlying && (_currentMissionIndex < _visualItemsCount - 1)
-    property bool showPause:                _guidedActionsEnabled && _activeVehicle && _vehicleArmed && _activeVehicle.supports.pauseVehicle && _vehicleFlying && !_vehiclePaused && !_fixedWingOnApproach
-    property bool showChangeAlt:            _guidedActionsEnabled && _activeVehicle && _vehicleFlying && _activeVehicle.supports.guidedMode && _vehicleArmed && !_missionActive
+    property bool showRTL:                  _guidedActionsEnabled && _activeVehicle && _vehicleArmed && _activeVehicle.supports.guidedMode && _vehicleCanNavigate && !_vehicleInRTLMode
+    property bool showTakeoff:              _guidedActionsEnabled && _activeVehicle && !_vehicleIsBoat && (_activeVehicle.supports.guidedTakeoffWithAltitude || _activeVehicle.supports.guidedTakeoffWithoutAltitude) && !_vehicleFlying && _canTakeoff
+    property bool showTakeoffAction:        !_vehicleIsBoat && (showTakeoff || !showLand)
+    property bool showLand:                 _guidedActionsEnabled && _activeVehicle && !_vehicleIsBoat && _activeVehicle.supports.guidedMode && _vehicleArmed && !_activeVehicle.fixedWing && !_vehicleInLandMode
+    property bool showStartMission:         _guidedActionsEnabled && _missionAvailable && !_missionActive && (_vehicleIsBoat ? !_vehicleArmed : !_vehicleFlying) && _canStartMission
+    property bool showContinueMission:      _guidedActionsEnabled && _missionAvailable && !_missionActive && _vehicleArmed && _vehicleCanNavigate && (_currentMissionIndex < _visualItemsCount - 1)
+    // PX4 uses Hold for both Go To and Pause; that mode alone does not prove a Boat stopped.
+    property bool showPause:                _guidedActionsEnabled && _activeVehicle && _vehicleArmed && _activeVehicle.supports.pauseVehicle && _vehicleCanNavigate && (_vehicleIsBoat || !_vehiclePaused) && !_fixedWingOnApproach
+    property bool showChangeAlt:            _guidedActionsEnabled && _activeVehicle && !_vehicleIsBoat && _vehicleFlying && _activeVehicle.supports.guidedMode && _vehicleArmed && !_missionActive
     property bool showChangeLoiterRadius:   _guidedActionsEnabled && _activeVehicle && _vehicleFlying && _activeVehicle.supports.guidedMode && _vehicleArmed && !_missionActive && _vehicleInFwdFlight && fwdFlightGotoMapCircle.visible
     property bool showChangeSpeed:          _guidedActionsEnabled && _activeVehicle && _vehicleFlying && _activeVehicle.supports.guidedMode && _vehicleArmed && !_missionActive && _speedLimitsAvailable
-    property bool showOrbit:                _guidedActionsEnabled && _activeVehicle && _vehicleFlying && __orbitSupported && !_missionActive && _activeVehicle.homePosition.isValid && !isNaN(_activeVehicle.homePosition.altitude)
+    property bool showOrbit:                _guidedActionsEnabled && _activeVehicle && !_vehicleIsBoat && _vehicleFlying && __orbitSupported && !_missionActive && _activeVehicle.homePosition.isValid && !isNaN(_activeVehicle.homePosition.altitude)
     property bool showROI:                  _guidedActionsEnabled && _vehicleFlying && __roiSupported
-    property bool showLandAbort:            _guidedActionsEnabled && _vehicleFlying && _fixedWingOnApproach
-    property bool showGotoLocation:         _guidedActionsEnabled && _vehicleFlying
+    property bool showLandAbort:            _guidedActionsEnabled && !_vehicleIsBoat && _vehicleFlying && _fixedWingOnApproach
+    property bool showGotoLocation:         _guidedActionsEnabled && _vehicleCanNavigate && (!_vehicleIsBoat || _activeVehicle.supports.guidedMode)
     property bool showSetHome:              _guidedActionsEnabled
     property bool showSetEstimatorOrigin:   _activeVehicle && !(_activeVehicle.sensorsPresentBits & MAVLinkEnums.MAV_SYS_STATUS_SENSOR_GPS)
     property bool showChangeHeading:        _guidedActionsEnabled && _vehicleFlying
@@ -147,13 +162,13 @@ Item {
     property string changeSpeedMessage: _vehicleInFwdFlight ? changeAirspeedMessage : changeCruiseSpeedMessage
 
     // Note: The '_visualItemsCount - 2' is a hack to not trigger resume mission when a mission ends with an RTL item
-    property bool showResumeMission:    _activeVehicle && !_vehicleArmed && _vehicleWasFlying && _missionAvailable && _resumeMissionIndex > 0 && (_resumeMissionIndex < _visualItemsCount - 2)
+    property bool showResumeMission:    _activeVehicle && !_communicationLost && !_vehicleArmed && (_vehicleIsBoat ? _boatMissionWasActive : _vehicleWasFlying) && _missionAvailable && _resumeMissionIndex > 0 && (_resumeMissionIndex < _visualItemsCount - 2)
 
     property bool guidedUIVisible:          confirmDialog.visible
 
     property var    _corePlugin:            QGroundControl.corePlugin
     property var    _corePluginOptions:     QGroundControl.corePlugin.options
-    property bool   _guidedActionsEnabled:  (!ScreenTools.isDebug && _corePluginOptions.guidedActionsRequireRCRSSI && _activeVehicle) ? _rcRSSIAvailable : _activeVehicle
+    property bool   _guidedActionsEnabled:  !_communicationLost && ((!ScreenTools.isDebug && _corePluginOptions.guidedActionsRequireRCRSSI && _activeVehicle) ? _rcRSSIAvailable : _activeVehicle)
     property string _flightMode:            _activeVehicle ? _activeVehicle.flightMode : ""
     property bool   _missionAvailable:      missionController.containsItems
     property bool   _missionActive:         _activeVehicle ? _vehicleArmed && (_vehicleInLandMode || _vehicleInRTLMode || _vehicleInMissionMode) : false
@@ -171,6 +186,7 @@ Item {
     property bool   _hideOrbit:             !_corePluginOptions.flyView.guidedBarShowOrbit
     property bool   _hideROI:               !_corePluginOptions.flyView.guidedBarShowROI
     property bool   _vehicleWasFlying:      false
+    property bool   _boatMissionWasActive:  false
     property bool   _rcRSSIAvailable:       _activeVehicle ? _activeVehicle.rcRSSI.rawValue > 0 && _activeVehicle.rcRSSI.rawValue <= 100 : false
     property bool   _fixedWingOnApproach:   _activeVehicle ? _activeVehicle.fixedWing && _vehicleLanding : false
     property bool   _vehicleInFwdFlight:    _activeVehicle ? _activeVehicle.inFwdFlight : false
@@ -225,7 +241,7 @@ Item {
             } else {
                 console.error("setupSlider called for inapproproate change speed action", _vehicleInFwdFlight, _activeVehicle.haveMRSpeedLimits)
             }
-        } else if (actionCode === actionChangeAlt || actionCode === actionOrbit || actionCode === actionGoto || actionCode === actionPause) {
+        } else if (!_vehicleIsBoat && (actionCode === actionChangeAlt || actionCode === actionOrbit || actionCode === actionGoto || actionCode === actionPause)) {
             guidedValueSlider.setupSlider(
                 GuidedValueSlider.SliderType.Altitude,
                 _flyViewSettings.guidedMinimumAltitude.value,
@@ -235,7 +251,51 @@ Item {
         }
     }
 
-    on_ActiveVehicleChanged: _outputState()
+    function _cancelPendingAction() {
+        if (confirmDialog) {
+            confirmDialog.confirmCancelled()
+        }
+    }
+
+    on_ActiveVehicleChanged: {
+        _cancelPendingAction()
+        _boatMissionWasActive = !!_activeVehicle && _activeVehicle.boat && _activeVehicle.armed && _activeVehicle.flightMode === _activeVehicle.missionFlightMode
+        _outputState()
+    }
+    on_CommunicationLostChanged: {
+        if (_communicationLost) {
+            _cancelPendingAction()
+        }
+    }
+
+    function actionTargetIsCurrent(targetVehicle) {
+        return !!_activeVehicle && targetVehicle === _activeVehicle && !_communicationLost
+    }
+
+    function _actionAvailable(actionCode) {
+        if (!_activeVehicle || _communicationLost) {
+            return false
+        }
+        if (_vehicleIsBoat) {
+            switch (actionCode) {
+            case actionTakeoff:
+            case actionLand:
+            case actionChangeAlt:
+            case actionLandAbort:
+            case actionOrbit:
+                return false
+            case actionPause:           return showPause
+            case actionGoto:            return showGotoLocation
+            case actionRTL:             return showRTL
+            case actionStartMission:    return showStartMission
+            case actionContinueMission: return showContinueMission
+            case actionResumeMission:
+            case actionResumeMissionUploadFail:
+                return showResumeMission
+            }
+        }
+        return true
+    }
 
     Component.onCompleted:              _outputState()
     on_VehicleArmedChanged:             _outputState()
@@ -247,7 +307,12 @@ Item {
     on__RoiSupportedChanged:            _outputState()
     on__OrbitSupportedChanged:          _outputState()
     on_VisualItemsCountChanged:         _outputState()
-    on_MissionActiveChanged:            _outputState()
+    on_MissionActiveChanged: {
+        if (_vehicleIsBoat && _vehicleArmed && _vehicleInMissionMode) {
+            _boatMissionWasActive = true
+        }
+        _outputState()
+    }
 
     on_CurrentMissionIndexChanged: {
         if (_isGuidedActionsControllerLogEnabled()) {
@@ -375,6 +440,9 @@ Item {
 
     // Called when an action is about to be executed in order to confirm
     function confirmAction(actionCode, actionData, mapIndicator) {
+        if (!_actionAvailable(actionCode)) {
+            return
+        }
         var showImmediate = true
 
         // Cancel any previously pending action, notifying its map indicator if it differs from the incoming one
@@ -383,6 +451,7 @@ Item {
         confirmDialog.action = actionCode
         confirmDialog.actionData = actionData
         confirmDialog.mapIndicator = mapIndicator
+        confirmDialog.actionVehicle = _activeVehicle
         confirmDialog.optionText = ""
         _actionData = actionData
 
@@ -504,7 +573,7 @@ Item {
             confirmDialog.title = pauseTitle
             confirmDialog.message = pauseMessage
             confirmDialog.hideTrigger = Qt.binding(function() { return !showPause })
-            guidedValueSlider.visible = true
+            guidedValueSlider.visible = !_vehicleIsBoat
             break;
         case actionMVPause:
             confirmDialog.title = mvPauseTitle
@@ -548,7 +617,17 @@ Item {
 
     // Executes the specified action
     // Returns false if the action failed and any associated map indicator should be restored
+    function executeConfirmedAction(actionCode, actionData, sliderOutputValue, optionChecked, targetVehicle) {
+        if (!actionTargetIsCurrent(targetVehicle)) {
+            return false
+        }
+        return executeAction(actionCode, actionData, sliderOutputValue, optionChecked)
+    }
+
     function executeAction(actionCode, actionData, sliderOutputValue, optionChecked) {
+        if (!_actionAvailable(actionCode)) {
+            return false
+        }
         var i;
         var selectedVehicles;
         switch (actionCode) {
@@ -642,9 +721,13 @@ Item {
             _activeVehicle.abortLanding(50)     // hardcoded value for climbOutAltitude that is currently ignored
             break
         case actionPause:
-            var valueInMeters = _unitsConversion.appSettingsVerticalDistanceUnitsToMeters(sliderOutputValue)
-            var altitudeChangeInMeters = valueInMeters - _activeVehicle.altitudeRelative.rawValue
-            _activeVehicle.guidedModeChangeAltitude(altitudeChangeInMeters, true /* pauseVehicle */)
+            if (_vehicleIsBoat) {
+                _activeVehicle.pauseVehicle()
+            } else {
+                var valueInMeters = _unitsConversion.appSettingsVerticalDistanceUnitsToMeters(sliderOutputValue)
+                var altitudeChangeInMeters = valueInMeters - _activeVehicle.altitudeRelative.rawValue
+                _activeVehicle.guidedModeChangeAltitude(altitudeChangeInMeters, true /* pauseVehicle */)
+            }
             break
         case actionMVPause:
             selectedVehicles = QGroundControl.multiVehicleManager.selectedVehicles

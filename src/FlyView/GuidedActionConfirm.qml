@@ -17,6 +17,7 @@ Item {
     property string message
     property int    action
     property var    actionData
+    property var    actionVehicle
     property bool   hideTrigger:        false
     property var    mapIndicator
     property alias  optionText:         optionCheckBox.text
@@ -44,6 +45,7 @@ Item {
     }
 
     function reset() {
+        actionVehicle = null
         visible = false
         guidedValueSlider.visible = false
         hideTrigger = false
@@ -68,6 +70,10 @@ Item {
     }
 
     function _reallyShow() {
+        if (!guidedController.actionTargetIsCurrent(actionVehicle)) {
+            confirmCancelled()
+            return
+        }
         visible = true
         messageDisplay.opacity = 1.0
         messageFadeTimer.start()
@@ -89,6 +95,7 @@ Item {
         spacing:    ScreenTools.defaultFontPixelWidth
 
         QGCDelayButton {
+            objectName:         "guidedActionConfirmButton"
             text:               control.title
             enabled:            true
 
@@ -100,7 +107,8 @@ Item {
                     guidedValueSlider.visible = false
                 }
                 hideTrigger = false
-                let success = guidedController.executeAction(control.action, control.actionData, sliderOutputValue, control.optionChecked)
+                let success = guidedController.executeConfirmedAction(control.action, control.actionData, sliderOutputValue, control.optionChecked, control.actionVehicle)
+                control.actionVehicle = null
                 if (mapIndicator) {
                     if (success) {
                         mapIndicator.actionConfirmed()
