@@ -82,7 +82,7 @@ protected:
     void _handleAttitude(Vehicle *vehicle, const mavlink_message_t &message);
     void _handleAttitudeQuaternion(Vehicle *vehicle, const mavlink_message_t &message);
     void _handleAltitude(const mavlink_message_t &message);
-    void _handleVfrHud(const mavlink_message_t &message);
+    void _handleVfrHud(const mavlink_message_t &message, const Vehicle* vehicle = nullptr);
     void _handleRawImuTemp(const mavlink_message_t &message);
     void _handleNavControllerOutput(const mavlink_message_t &message);
     void _handleRangefinder(const mavlink_message_t &message);

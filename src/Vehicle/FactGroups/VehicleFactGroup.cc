@@ -89,7 +89,7 @@ void VehicleFactGroup::handleMessage(Vehicle *vehicle, const mavlink_message_t &
         _handleAltitude(message);
         break;
     case MAVLINK_MSG_ID_VFR_HUD:
-        _handleVfrHud(message);
+        _handleVfrHud(message, vehicle);
         break;
     case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:
         _handleNavControllerOutput(message);
@@ -205,21 +205,29 @@ void VehicleFactGroup::_handleNavControllerOutput(const mavlink_message_t &messa
     _setTelemetryAvailable(true);
 }
 
-void VehicleFactGroup::_handleVfrHud(const mavlink_message_t &message)
+void VehicleFactGroup::_handleVfrHud(const mavlink_message_t& message, const Vehicle* vehicle)
 {
     mavlink_vfr_hud_t vfrHud{};
     mavlink_msg_vfr_hud_decode(&message, &vfrHud);
 
     airSpeed()->setRawValue(qIsNaN(vfrHud.airspeed) ? 0 : vfrHud.airspeed);
-    groundSpeed()->setRawValue(qIsNaN(vfrHud.groundspeed) ? 0 : vfrHud.groundspeed);
+    const bool boat = vehicle && vehicle->boat();
+    const double speed = vfrHud.groundspeed;
+    const bool validBoatSpeed = qIsFinite(speed) && speed >= 0;
+    groundSpeed()->setRawValue(boat ? (validBoatSpeed ? speed : qQNaN()) : (qIsNaN(speed) ? 0 : speed));
     climbRate()->setRawValue(qIsNaN(vfrHud.climb) ? 0 : vfrHud.climb);
     throttlePct()->setRawValue(static_cast<int16_t>(vfrHud.throttle));
     if (qIsNaN(_altitudeTuningOffset)) {
         _altitudeTuningOffset = vfrHud.alt;
     }
     altitudeTuning()->setRawValue(vfrHud.alt - _altitudeTuningOffset);
-    if (!qIsNaN(vfrHud.groundspeed) && !qIsNaN(_distanceToHomeFact.cookedValue().toDouble())) {
-      timeToHome()->setRawValue(_distanceToHomeFact.cookedValue().toDouble() / vfrHud.groundspeed);
+    if (boat) {
+        const double distance = distanceToHome()->rawValue().toDouble();
+        // Use raw metres and m/s; display units must not change the estimate.
+        timeToHome()->setRawValue(validBoatSpeed && speed > 0 && qIsFinite(distance) && distance >= 0 ? distance / speed
+                                                                                                      : qQNaN());
+    } else if (!qIsNaN(vfrHud.groundspeed) && !qIsNaN(_distanceToHomeFact.cookedValue().toDouble())) {
+        timeToHome()->setRawValue(_distanceToHomeFact.cookedValue().toDouble() / vfrHud.groundspeed);
     }
 
     _setTelemetryAvailable(true);

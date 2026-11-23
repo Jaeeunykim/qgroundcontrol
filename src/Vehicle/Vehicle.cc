@@ -382,6 +382,18 @@ void Vehicle::_commonInit(LinkInterface* link)
     _gimbalController = new GimbalController(this);
     _vehicleSupports = new VehicleSupports(this);
 
+    const auto resetBoatTelemetry = [this]() {
+        if (boat()) {
+            // An unreceived sample must not appear as a stopped boat or a north heading.
+            for (Fact* fact : {heading(), groundSpeed(), distanceToNextWP(), timeToHome()}) {
+                fact->setRawValue(qQNaN());
+            }
+            _updateDistanceHeadingHome();
+        }
+    };
+    resetBoatTelemetry();
+    connect(this, &Vehicle::vehicleTypeChanged, this, resetBoatTelemetry);
+
     _createCameraManager();
 }
 

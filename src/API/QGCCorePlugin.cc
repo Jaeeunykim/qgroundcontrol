@@ -198,17 +198,21 @@ void QGCCorePlugin::factValueGridCreateDefaultSettings(FactValueGrid* factValueG
         factValueGrid->appendColumn();
         const bool card = factValueGrid->specificVehicleForCard();
         if (!card) {
+            factValueGrid->appendColumn();
             factValueGrid->appendRow();
         }
         const QStringList facts =
             card ? QStringList{QStringLiteral("GroundSpeed"), QStringLiteral("Heading")}
-                 : QStringList{QStringLiteral("GroundSpeed"), QStringLiteral("Heading"),
-                               QStringLiteral("DistanceToHome"), QStringLiteral("DistanceToNextWP")};
+                 : QStringList{QStringLiteral("GroundSpeed"),      QStringLiteral("Heading"),
+                               QStringLiteral("CourseOverGround"), QStringLiteral("DistanceToHome"),
+                               QStringLiteral("DistanceToNextWP"), QStringLiteral("TimeToHome")};
         const int rows = card ? 1 : 2;
         for (int index = 0; index < facts.count(); index++) {
             auto* column = factValueGrid->columns()->value<QmlObjectListModel*>(index / rows);
             auto* value = column->value<InstrumentValueData*>(index % rows);
-            value->setFact(QStringLiteral("Vehicle"), facts[index]);
+            value->setFact(
+                facts[index] == QStringLiteral("CourseOverGround") ? QStringLiteral("Gps") : QStringLiteral("Vehicle"),
+                facts[index]);
             if (value->fact()) {
                 value->setText(value->fact()->shortDescription());
             }

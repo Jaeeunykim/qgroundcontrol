@@ -72,13 +72,17 @@ void BoatPresentationTest::_defaults()
         return;
     }
     if (type == MAV_TYPE_SURFACE_BOAT) {
-        QCOMPARE(grid.columns()->count(), 2);
+        QCOMPARE(grid.columns()->count(), card ? 2 : 3);
         QCOMPARE(grid.property("rowCount").toInt(), card ? 1 : 2);
         QCOMPARE(_value(grid)->factName(), QStringLiteral("GroundSpeed"));
         QCOMPARE(_value(grid, card ? 1 : 0, card ? 0 : 1)->factName(), QStringLiteral("Heading"));
         if (!card) {
-            QCOMPARE(_value(grid, 1, 0)->factName(), QStringLiteral("DistanceToHome"));
-            QCOMPARE(_value(grid, 1, 1)->factName(), QStringLiteral("DistanceToNextWP"));
+            QCOMPARE(_value(grid, 1, 0)->factName(), QStringLiteral("CourseOverGround"));
+            QCOMPARE(_value(grid, 1, 0)->fact(),
+                     grid.currentVehicle()->gpsFactGroup()->getFact(QStringLiteral("courseOverGround")));
+            QCOMPARE(_value(grid, 1, 1)->factName(), QStringLiteral("DistanceToHome"));
+            QCOMPARE(_value(grid, 2, 0)->factName(), QStringLiteral("DistanceToNextWP"));
+            QCOMPARE(_value(grid, 2, 1)->factName(), QStringLiteral("TimeToHome"));
         }
         for (int column = 0; column < grid.columns()->count(); column++) {
             for (int row = 0; row < grid.property("rowCount").toInt(); row++) {
