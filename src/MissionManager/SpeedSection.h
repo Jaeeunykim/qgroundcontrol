@@ -44,6 +44,7 @@ private slots:
 
 private:
     bool    _available;
+    bool    _requestedAvailable = false;
     bool    _dirty;
     bool    _specifyFlightSpeed;
     Fact    _flightSpeedFact;

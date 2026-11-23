@@ -35,6 +35,11 @@ SpeedSection::SpeedSection(PlanMasterController* masterController, QObject* pare
 
     connect(this,               &SpeedSection::specifyFlightSpeedChanged,   this, &SpeedSection::_updateSpecifiedFlightSpeed);
     connect(&_flightSpeedFact,  &Fact::valueChanged,                        this, &SpeedSection::_updateSpecifiedFlightSpeed);
+
+    const Vehicle* vehicle = _masterController->controllerVehicle();
+    if (vehicle) {
+        connect(vehicle, &Vehicle::vehicleTypeChanged, this, [this]() { setAvailable(_requestedAvailable); });
+    }
 }
 
 bool SpeedSection::settingsSpecified(void) const
@@ -44,11 +49,13 @@ bool SpeedSection::settingsSpecified(void) const
 
 void SpeedSection::setAvailable(bool available)
 {
-    if (available != _available) {
-        if (available && (_masterController->controllerVehicle()->multiRotor() || _masterController->controllerVehicle()->fixedWing())) {
-            _available = available;
-            emit availableChanged(available);
-        }
+    _requestedAvailable = available;
+    const Vehicle* vehicle = _masterController->controllerVehicle();
+    const bool effectiveAvailable =
+        available && vehicle && (vehicle->boat() || vehicle->multiRotor() || vehicle->fixedWing());
+    if (effectiveAvailable != _available) {
+        _available = effectiveAvailable;
+        emit availableChanged(_available);
     }
 }
 
@@ -79,11 +86,12 @@ void SpeedSection::appendSectionItems(QList<MissionItem*>& items, QObject* missi
 {
     // IMPORTANT NOTE: If anything changes here you must also change SpeedSection::scanForSettings
 
-    if (_specifyFlightSpeed) {
+    const Vehicle* vehicle = _masterController->controllerVehicle();
+    if (_specifyFlightSpeed && vehicle) {
         MissionItem* item = new MissionItem(seqNum++,
                                             MAV_CMD_DO_CHANGE_SPEED,
                                             MAV_FRAME_MISSION,
-                                            _masterController->controllerVehicle()->multiRotor() ? 1 /* groundspeed */ : 0 /* airspeed */,    // Change airspeed or groundspeed
+                                            (vehicle->multiRotor() || vehicle->boat()) ? 1 /* groundspeed */ : 0 /* airspeed */,
                                             _flightSpeedFact.rawValue().toDouble(),
                                             -1,                                                                 // No throttle change
                                             0,                                                                  // Absolute speed change
@@ -97,7 +105,8 @@ void SpeedSection::appendSectionItems(QList<MissionItem*>& items, QObject* missi
 
 bool SpeedSection::scanForSection(QmlObjectListModel* visualItems, int scanIndex)
 {
-    if (!_available || scanIndex >= visualItems->count()) {
+    const Vehicle* vehicle = _masterController->controllerVehicle();
+    if (!vehicle || !_available || scanIndex < 0 || scanIndex >= visualItems->count()) {
         return false;
     }
 
@@ -111,9 +120,13 @@ bool SpeedSection::scanForSection(QmlObjectListModel* visualItems, int scanIndex
     // See SpeedSection::appendMissionItems for specs on what consitutes a known speed setting
 
     if (missionItem.command() == MAV_CMD_DO_CHANGE_SPEED && missionItem.param3() == -1 && missionItem.param4() == 0 && missionItem.param5() == 0 && missionItem.param6() == 0 && missionItem.param7() == 0) {
-        if (_masterController->controllerVehicle()->multiRotor() && missionItem.param1() != 1) {
+        // Preserve sentinel/invalid commands as raw items instead of consuming them into a nonnegative-speed Fact.
+        if (vehicle->boat() && (!qIsFinite(missionItem.param2()) || missionItem.param2() < 0)) {
             return false;
-        } else if (_masterController->controllerVehicle()->fixedWing() && missionItem.param1() != 0) {
+        }
+        if ((vehicle->multiRotor() || vehicle->boat()) && missionItem.param1() != 1) {
+            return false;
+        } else if (vehicle->fixedWing() && missionItem.param1() != 0) {
             return false;
         }
         visualItems->removeAt(scanIndex)->deleteLater();

@@ -10,6 +10,8 @@ target_sources(${CMAKE_PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/VehicleConfigUITestBase.h
         ${CMAKE_CURRENT_SOURCE_DIR}/TopLevelViewsTest.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/TopLevelViewsTest.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/BoatPlanEditorsTest.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/BoatPlanEditorsTest.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BoatGuidedActionsTest.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/BoatGuidedActionsTest.h
         ${CMAKE_CURRENT_SOURCE_DIR}/PX4VehicleConfigUITest.cc
@@ -56,6 +58,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_
 
 add_qgc_test(TopLevelViewsTest LABELS Integration NoSanitizer TIMEOUT 120)
 add_qgc_test(BoatGuidedActionsTest LABELS Integration NoSanitizer TIMEOUT 120)
+add_qgc_test(BoatPlanEditorsTest LABELS Integration NoSanitizer TIMEOUT 120)
 
 qt_add_resources(
     ${CMAKE_PROJECT_NAME} "BoatGuidedActionsHarness"

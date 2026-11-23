@@ -6,7 +6,13 @@
 #include "Fact.h"
 #include "FirmwarePlugin.h"
 #include "LinkManager.h"
+#include "MissionController.h"
+#include "MissionManager.h"
+#include "MissionSettingsItem.h"
 #include "MockLink.h"
+#include "PlanMasterController.h"
+#include "SimpleMissionItem.h"
+#include "SpeedSection.h"
 #include "Vehicle.h"
 
 UT_REGISTER_TEST(BoatNavigationTest, TestLabel::Integration, TestLabel::Vehicle)
@@ -294,4 +300,107 @@ void BoatNavigationTest::_invalidGotoCoordinates()
     QVERIFY(!_vehicle->guidedModeGotoLocation(QGeoCoordinate(0, 0)));
     verifyExpectedLogMessage();
     QCOMPARE(_mockLink->receivedMavCommandCount(MAV_CMD_DO_REPOSITION), 0);
+}
+
+void BoatNavigationTest::_planSpeedVehicleRoundTrip_data()
+{
+    _pauseWithoutAltitude_data();
+}
+
+void BoatNavigationTest::_planSpeedVehicleRoundTrip()
+{
+    QFETCH(int, type);
+    _connectVehicle(static_cast<MAV_TYPE>(type));
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    PlanMasterController master;
+    master.setFlyView(false);
+    master.start();
+    auto* mission = master.missionController();
+    mission->insertSimpleMissionItem(QGeoCoordinate(47, 8, 0), 1, false);
+    mission->insertSimpleMissionItem(QGeoCoordinate(47.001, 8.001, 0), 2, false);
+    auto* waypoint = mission->visualItems()->value<SimpleMissionItem*>(1);
+    auto* settings = mission->visualItems()->value<MissionSettingsItem*>(0);
+    QVERIFY(waypoint && settings);
+    const bool speedSupported = type != MAV_TYPE_GROUND_ROVER;
+    QCOMPARE(waypoint->speedSection()->available(), speedSupported);
+    if (speedSupported) {
+        settings->speedSection()->setSpecifyFlightSpeed(true);
+        settings->speedSection()->flightSpeed()->setRawValue(2.0);
+        waypoint->speedSection()->setSpecifyFlightSpeed(true);
+        waypoint->speedSection()->flightSpeed()->setRawValue(3.0);
+    }
+    QSignalSpy uploaded(_vehicle->missionManager(), &MissionManager::sendComplete);
+    master.sendToVehicle();
+    QTRY_VERIFY_WITH_TIMEOUT(!uploaded.isEmpty(), TestTimeout::longMs());
+    QVERIFY(!uploaded.last().at(0).toBool());
+    QVERIFY(!master.syncInProgress());
+    QVERIFY(!master.dirtyForUpload());
+    mission->loadFromVehicle();
+    QTRY_VERIFY_WITH_TIMEOUT(!mission->syncInProgress(), TestTimeout::longMs());
+    QCOMPARE(mission->visualItems()->count(), 3);
+    settings = mission->visualItems()->value<MissionSettingsItem*>(0);
+    waypoint = mission->visualItems()->value<SimpleMissionItem*>(1);
+    QVERIFY(settings && waypoint);
+    QCOMPARE(settings->speedSection()->specifyFlightSpeed(), speedSupported);
+    QCOMPARE(waypoint->speedSection()->specifyFlightSpeed(), speedSupported);
+    if (speedSupported) {
+        QCOMPARE(settings->speedSection()->specifiedFlightSpeed(), 2.0);
+        QCOMPARE(waypoint->speedSection()->specifiedFlightSpeed(), 3.0);
+    }
+    int speedCount = 0;
+    for (const MissionItem* item : _vehicle->missionManager()->missionItems()) {
+        if (item->command() == MAV_CMD_DO_CHANGE_SPEED) {
+            QCOMPARE(item->param1(), 1.0);
+            QCOMPARE(item->param3(), -1.0);
+            speedCount++;
+        }
+    }
+    QCOMPARE(speedCount, speedSupported ? 2 : 0);
+}
+
+void BoatNavigationTest::_rejectAircraftMission_data()
+{
+    QTest::addColumn<int>("command");
+    for (const auto command :
+         {MAV_CMD_NAV_TAKEOFF, MAV_CMD_NAV_LAND, MAV_CMD_NAV_TAKEOFF_LOCAL, MAV_CMD_NAV_LAND_LOCAL,
+          MAV_CMD_NAV_VTOL_TAKEOFF, MAV_CMD_NAV_VTOL_LAND, MAV_CMD_NAV_LOITER_TO_ALT,
+          MAV_CMD_NAV_CONTINUE_AND_CHANGE_ALT, MAV_CMD_CONDITION_CHANGE_ALT, MAV_CMD_DO_CHANGE_ALTITUDE,
+          MAV_CMD_DO_LAND_START, MAV_CMD_DO_GO_AROUND, MAV_CMD_DO_VTOL_TRANSITION}) {
+        QTest::newRow(QString::number(command).toLatin1().constData()) << int(command);
+    }
+}
+
+void BoatNavigationTest::_rejectAircraftMission()
+{
+    QFETCH(int, command);
+    _connectVehicle(MAV_TYPE_SURFACE_BOAT);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    PlanMasterController master;
+    master.setFlyView(false);
+    master.start();
+    auto* mission = master.missionController();
+    mission->insertSimpleMissionItem(QGeoCoordinate(47, 8, 0), 1, false);
+    auto* waypoint = mission->visualItems()->value<SimpleMissionItem*>(1);
+    QVERIFY(waypoint);
+    waypoint->setCommand(command);
+    const int originalCommand = waypoint->command();
+    QSignalSpy sent(_vehicle->missionManager(), &MissionManager::sendComplete);
+    expectAppMessage(QRegularExpression(QStringLiteral("Boat mission contains an aircraft-only command")));
+    master.sendToVehicle();
+    verifyExpectedLogMessage();
+    QVERIFY(!master.syncInProgress());
+    QVERIFY(master.dirtyForUpload());
+    QVERIFY(mission->dirty());
+    QCOMPARE(sent.count(), 0);
+    QCOMPARE(waypoint->command(), originalCommand);
+    // An explicit correction and retry must still work after the rejected upload.
+    waypoint->setCommand(MAV_CMD_NAV_WAYPOINT);
+    master.sendToVehicle();
+    QTRY_VERIFY_WITH_TIMEOUT(!sent.isEmpty(), TestTimeout::longMs());
+    QVERIFY(!sent.last().at(0).toBool());
+    QVERIFY(!master.dirtyForUpload());
 }

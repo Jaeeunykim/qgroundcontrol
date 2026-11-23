@@ -14,6 +14,7 @@ Rectangle {
     required property var planMasterController
 
     property var _controllerVehicle: planMasterController.controllerVehicle
+    readonly property bool _isBoat: _controllerVehicle ? _controllerVehicle.boat : false
     property var _visualItems: missionController.visualItems
     property bool _noMissionItemsAdded: _visualItems ? _visualItems.count <= 1 : true
     property var _settingsItem: _visualItems && _visualItems.count > 0 ? _visualItems.get(0) : null
@@ -55,7 +56,9 @@ Rectangle {
         spacing: ScreenTools.defaultFontPixelHeight * 0.5
 
         LabelledButton {
+            objectName: "missionDefaults_altFrame"
             Layout.fillWidth: true
+            visible: !_root._isBoat
             label: qsTr("Alt Frame")
             buttonText: QGroundControl.altitudeFrameExtraUnits(_root.missionController.globalAltitudeFrame)
 
@@ -84,14 +87,17 @@ Rectangle {
         }
 
         FactTextFieldSlider {
+            objectName: "missionDefaults_altitude"
             Layout.fillWidth: true
+            visible: !_root._isBoat
             label: qsTr("Waypoints Altitude")
             fact: QGroundControl.settingsManager.appSettings.defaultMissionItemAltitude
         }
 
         FactTextFieldSlider {
             Layout.fillWidth: true
-            label: qsTr("Flight Speed")
+            objectName: "missionDefaults_speed"
+            label: _root._isBoat ? qsTr("Ground Speed") : qsTr("Flight Speed")
             fact: _root._settingsItem ? _root._settingsItem.speedSection.flightSpeed : null
             showEnableCheckbox: true
             enableCheckBoxChecked: _root._settingsItem ? _root._settingsItem.speedSection.specifyFlightSpeed : false
@@ -121,12 +127,12 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 font.pointSize: ScreenTools.smallFontPointSize
-                text: qsTr("The following speed values are used to calculate total mission time. They do not affect the flight speed for the mission.")
+                text: _root._isBoat ? qsTr("The following speed is used to calculate total mission time. It does not change the commanded ground speed.") : qsTr("The following speed values are used to calculate total mission time. They do not affect the flight speed for the mission.")
             }
 
             FactTextFieldSlider {
                 Layout.fillWidth: true
-                label: _root._isVtol ? qsTr("FW - Flight speed") : qsTr("Flight speed")
+                label: _root._isBoat ? qsTr("Ground speed") : (_root._isVtol ? qsTr("FW - Flight speed") : qsTr("Flight speed"))
                 fact: QGroundControl.settingsManager.appSettings.offlineEditingCruiseSpeed
                 visible: _root._showCruiseSpeed
                 enabled: !_root._flightSpeedSpecified

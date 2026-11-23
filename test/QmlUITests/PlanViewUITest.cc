@@ -138,12 +138,24 @@ void PlanViewUITest::_testRoverBoatWaypointOnEmptyPlan()
     // Rover and Boat have no takeoff item, so the Waypoint tool is the first insert tool
     // available on an empty plan.
     SettingsManager::instance()->appSettings()->offlineEditingVehicleClass()->setRawValue(vehicleType);
+    Fact* status = SettingsManager::instance()->planViewSettings()->showMissionItemStatus();
+    const QVariant savedStatus = status->rawValue();
+    const auto restoreStatus = qScopeGuard([status, savedStatus] { status->setRawValue(savedStatus); });
+    status->setRawValue(true);
 
     _verifyWaypointToolAddsWaypointOnEmptyPlan(false /* expectTakeoffButtonVisible */);
     if (QTest::currentTestFailed()) return;
 
     // The shared Rover/Boat Land tool inserts RTL, so the label must read Return (issue #14957)
     verifyText(QStringLiteral("planToolStrip_landButton"), QStringLiteral("Return"), QStringLiteral("rover land tool"));
+    auto* terrain = findItem(_rootItem, QStringLiteral("planView_terrainStatus"));
+    auto* terrainButton = findItem(_rootItem, QStringLiteral("planView_terrainButton"));
+    auto* stats = findItem(_rootItem, QStringLiteral("planView_missionStats"));
+    QVERIFY(terrain && terrainButton && stats);
+    const bool boat = vehicleType == MAV_TYPE_SURFACE_BOAT;
+    QTRY_COMPARE_WITH_TIMEOUT(terrain->isVisible(), !boat, TestTimeout::shortMs());
+    QCOMPARE(terrainButton->isVisible(), !boat);
+    QCOMPARE(stats->isVisible(), boat);
 }
 
 void PlanViewUITest::_testTakeoffNotRequiredWaypointOnEmptyPlan()

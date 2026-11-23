@@ -6,6 +6,7 @@
 #include "FlightPathSegment.h"
 #include "FirmwarePlugin.h"
 #include "QGCApplication.h"
+#include "AppMessages.h"
 #include "SimpleMissionItem.h"
 #include "SurveyComplexItem.h"
 #include "FixedWingLandingComplexItem.h"
@@ -191,9 +192,13 @@ void MissionController::sendToVehicle(void)
         if (_visualItems->count() == 1) {
             // This prevents us from sending a possibly bogus home position to the vehicle
             QmlObjectListModel emptyModel;
-            sendItemsToVehicle(_managerVehicle, &emptyModel);
+            if (!sendItemsToVehicle(_managerVehicle, &emptyModel)) {
+                return;
+            }
         } else {
-            sendItemsToVehicle(_managerVehicle, _visualItems);
+            if (!sendItemsToVehicle(_managerVehicle, _visualItems)) {
+                return;
+            }
         }
         setDirty(false);
     }
@@ -242,16 +247,30 @@ void MissionController::addMissionToKML(KMLPlanDomDocument& planKML)
     deleteParent->deleteLater();
 }
 
-void MissionController::sendItemsToVehicle(Vehicle* vehicle, QmlObjectListModel* visualMissionItems)
+bool MissionController::sendItemsToVehicle(Vehicle* vehicle, QmlObjectListModel* visualMissionItems)
 {
     if (vehicle) {
         QList<MissionItem*> rgMissionItems;
 
         _convertToMissionItems(visualMissionItems, rgMissionItems, vehicle);
 
+        if (vehicle->boat()) {
+            for (const MissionItem* item : std::as_const(rgMissionItems)) {
+                if (MissionCommandTree::instance()->isAirborneOnlyCommand(static_cast<MAV_CMD>(item->command()))) {
+                    QGC::showAppMessage(
+                        tr("Boat mission contains an aircraft-only command (%1). Remove it before uploading.")
+                            .arg(item->command()));
+                    qDeleteAll(rgMissionItems);
+                    return false;
+                }
+            }
+        }
+
         // PlanManager takes control of MissionItems so no need to delete
         vehicle->missionManager()->writeMissionItems(rgMissionItems);
+        return true;
     }
+    return false;
 }
 
 int MissionController::_nextSequenceNumber(void)
@@ -938,7 +957,7 @@ FlightPathSegment* MissionController::_createFlightPathSegmentWorker(VisualItemP
 
     FlightPathSegment* segment =
         new FlightPathSegment(segmentTypeForPair(pair, mavlinkTerrainFrame), coord1, coord1AMSLAlt, coord2,
-                              coord2AMSLAlt, !_flyView /* queryTerrainData */, this);
+                              coord2AMSLAlt, !_flyView && !_controllerVehicle->boat() /* queryTerrainData */, this);
 
     if (takeoffStraightUp) {
         connect(pair.second, &VisualMissionItem::amslEntryAltChanged, segment, &FlightPathSegment::setCoord1AMSLAlt);
@@ -1144,7 +1163,7 @@ void MissionController::_recalcFlightPathSegments(void)
                         lastSegmentVisualItemPair.first->isSimpleItem() ? lastSegmentVisualItemPair.first->amslEntryAlt() : lastSegmentVisualItemPair.first->amslExitAlt(),
                         lastSegmentVisualItemPair.second->entryCoordinate(),
                         lastSegmentVisualItemPair.second->amslEntryAlt(),
-                        !_flyView /* queryTerrainData */,
+                        !_flyView && !_controllerVehicle->boat() /* queryTerrainData */,
                         this);
             _flightPathSegmentHashTable[lastSegmentVisualItemPair] = coordVector;
         }
@@ -2413,7 +2432,7 @@ QGroundControlQmlGlobal::AltitudeFrame MissionController::globalAltitudeFrame(vo
 
 QGroundControlQmlGlobal::AltitudeFrame MissionController::globalAltitudeFrameDefault(void)
 {
-    if (_globalAltFrame == QGroundControlQmlGlobal::AltitudeFrameMixed) {
+    if (_controllerVehicle->boat() || _globalAltFrame == QGroundControlQmlGlobal::AltitudeFrameMixed) {
         return QGroundControlQmlGlobal::AltitudeFrameRelative;
     } else {
         return _globalAltFrame;

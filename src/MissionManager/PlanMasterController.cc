@@ -338,6 +338,10 @@ void PlanMasterController::sendToVehicle(void)
         qCDebug(PlanMasterControllerLog) << "PlanMasterController::sendToVehicle start mission sendToVehicle";
         _sendSequence = SyncSequence::Mission;
         _missionController.sendToVehicle();
+        if (_sendSequence == SyncSequence::Mission && !_missionController.syncInProgress()) {
+            // Validation can reject an upload before a MissionManager transfer starts.
+            _sendSequence = SyncSequence::Idle;
+        }
     }
 }
 

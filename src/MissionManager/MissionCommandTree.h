@@ -69,6 +69,9 @@ public:
     bool isLandCommand(MAV_CMD command) const;
     bool isTakeoffCommand(MAV_CMD command) const;
 
+    /// Aircraft-only commands are retained when loading plans, but excluded from Boat editing and upload.
+    bool isAirborneOnlyCommand(MAV_CMD command) const;
+
     const QList<MAV_CMD> &allCommandIds() const;
 
     const MissionCommandUIInfo *getUIInfo(Vehicle *vehicle, QGCMAVLink::VehicleClass_t vtolMode, MAV_CMD command);

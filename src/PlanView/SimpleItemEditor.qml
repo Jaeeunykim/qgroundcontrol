@@ -18,7 +18,7 @@ Rectangle {
     radius: _radius
 
 
-    property bool _specifiesAltitude: missionItem.specifiesAltitude
+    property bool _specifiesAltitude: missionItem.specifiesAltitude && !(_controllerVehicle && _controllerVehicle.boat)
     property real _margin: ScreenTools.defaultFontPixelHeight / 2
     property real _altRectMargin: ScreenTools.defaultFontPixelWidth / 2
     property var _controllerVehicle: missionItem.masterController.controllerVehicle
@@ -168,6 +168,7 @@ Rectangle {
 
                     FactTextFieldSlider {
                         id: altField
+                        objectName: "simpleItem_altitude"
                         Layout.fillWidth: true
                         label: qsTr("Altitude%1").arg(_extraLabelText())
                         fact: missionItem.altitude
@@ -240,7 +241,8 @@ Rectangle {
 
                 FactTextFieldSlider {
                     Layout.fillWidth: true
-                    label: qsTr("Flight Speed")
+                    objectName: "simpleItem_speed"
+                    label: _controllerVehicle && _controllerVehicle.boat ? qsTr("Ground Speed") : qsTr("Flight Speed")
                     fact: missionItem.speedSection.flightSpeed
                     showEnableCheckbox: true
                     enableCheckBoxChecked: missionItem.speedSection.specifyFlightSpeed

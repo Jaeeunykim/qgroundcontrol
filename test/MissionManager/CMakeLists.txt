@@ -5,6 +5,7 @@
 
 target_sources(${CMAKE_PROJECT_NAME}
     PRIVATE
+        BoatMissionPlanningTest.cc BoatMissionPlanningTest.h
         CameraCalcTest.cc CameraCalcTest.h
         CameraSectionTest.cc CameraSectionTest.h
         CameraSpecTest.cc CameraSpecTest.h
@@ -77,6 +78,7 @@ qt_add_resources(${CMAKE_PROJECT_NAME} "MissionManagerTest_res1"
 #
 # target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE MissionManagerTestModule)
 
+add_qgc_test(BoatMissionPlanningTest LABELS Unit MissionManager)
 add_qgc_test(CameraCalcTest LABELS Unit MissionManager)
 add_qgc_test(CameraSectionTest LABELS Unit MissionManager)
 add_qgc_test(CameraSpecTest LABELS Unit MissionManager)

@@ -18,6 +18,10 @@ private slots:
     void _commandResults_data();
     void _commandResults();
     void _invalidGotoCoordinates();
+    void _planSpeedVehicleRoundTrip_data();
+    void _planSpeedVehicleRoundTrip();
+    void _rejectAircraftMission_data();
+    void _rejectAircraftMission();
 
 private:
     void _connectVehicle(MAV_TYPE type, bool commandInt = false);

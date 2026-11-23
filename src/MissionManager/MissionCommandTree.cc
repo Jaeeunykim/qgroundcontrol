@@ -171,6 +171,27 @@ bool MissionCommandTree::isTakeoffCommand(MAV_CMD command) const
     return (uiInfo && uiInfo->isTakeoffCommand());
 }
 
+bool MissionCommandTree::isAirborneOnlyCommand(MAV_CMD command) const
+{
+    if (isTakeoffCommand(command) || isLandCommand(command)) {
+        return true;
+    }
+    switch (command) {
+        case MAV_CMD_NAV_TAKEOFF_LOCAL:
+        case MAV_CMD_NAV_LAND_LOCAL:
+        case MAV_CMD_NAV_LOITER_TO_ALT:
+        case MAV_CMD_NAV_CONTINUE_AND_CHANGE_ALT:
+        case MAV_CMD_CONDITION_CHANGE_ALT:
+        case MAV_CMD_DO_CHANGE_ALTITUDE:
+        case MAV_CMD_DO_LAND_START:
+        case MAV_CMD_DO_GO_AROUND:
+        case MAV_CMD_DO_VTOL_TRANSITION:
+            return true;
+        default:
+            return false;
+    }
+}
+
 const QList<MAV_CMD> &MissionCommandTree::allCommandIds() const
 {
     return _staticCommandTree[QGCMAVLink::FirmwareClassGeneric][QGCMAVLink::VehicleClassGeneric]->commandIds();
@@ -215,6 +236,9 @@ QVariantList MissionCommandTree::getCommandsForCategory(Vehicle *vehicle, const 
     const QMap<MAV_CMD, MissionCommandUIInfo*> commandMap = _allCommands[firmwareClass][vehicleClass];
     QVariantList list;
     for (const MAV_CMD command: commandMap.keys()) {
+        if (vehicle && vehicle->boat() && isAirborneOnlyCommand(command)) {
+            continue;
+        }
         if (supportedCommands.isEmpty() || supportedCommands.contains(command)) {
             MissionCommandUIInfo* uiInfo = commandMap[command];
             if ((uiInfo->category() == category || category == _allCommandsCategory) && (showFlyThroughCommands || !uiInfo->specifiesCoordinate() || uiInfo->isStandaloneCoordinate())) {

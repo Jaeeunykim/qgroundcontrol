@@ -696,6 +696,8 @@ Item {
 
                 Rectangle {
                     id: terrainButton
+                    objectName: "planView_terrainButton"
+                    visible: !_planMasterController.controllerVehicle.boat
                     implicitWidth: missionStatsButtonLayout._buttonImplicitWidth
                     implicitHeight: implicitWidth
                     color: checked ? QGroundControl.globalPalette.buttonHighlight : QGroundControl.globalPalette.button
@@ -764,19 +766,21 @@ Item {
 
             TerrainStatus {
                 id: terrainStatus
+                objectName: "planView_terrainStatus"
                 Layout.alignment: Qt.AlignBottom
                 Layout.fillWidth: true
                 height: ScreenTools.defaultFontPixelHeight * 7
                 missionController: _missionController
-                visible: terrainButton.checked
+                visible: !_planMasterController.controllerVehicle.boat && terrainButton.checked
                 onSetCurrentSeqNum: _missionController.setCurrentPlanViewSeqNum(seqNum, true)
             }
 
             MissionStats {
                 id: missionStats
+                objectName: "planView_missionStats"
                 Layout.alignment: Qt.AlignBottom
                 Layout.fillWidth: true
-                visible: missionStatsButton.checked
+                visible: _planMasterController.controllerVehicle.boat || missionStatsButton.checked
                 planMasterController: _root._planMasterController
             }
         }

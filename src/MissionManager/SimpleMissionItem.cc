@@ -771,7 +771,7 @@ void SimpleMissionItem::_altitudeChanged(void)
 
 void SimpleMissionItem::_terrainAltChanged(void)
 {
-    if (!specifiesAltitude()) {
+    if (_controllerVehicle->boat() || !specifiesAltitude()) {
         // We don't need terrain data
         return;
     }
@@ -804,6 +804,9 @@ SimpleMissionItem::ReadyForSaveState SimpleMissionItem::readyForSaveState(void) 
     }
 
     bool terrainReady =  !specifiesAltitude() || !qIsNaN(_missionItem._param7Fact.rawValue().toDouble());
+    if (!terrainReady && _controllerVehicle->boat()) {
+        return NotReadyForSaveData;
+    }
     return terrainReady ? ReadyForSave : NotReadyForSaveTerrain;
 }
 

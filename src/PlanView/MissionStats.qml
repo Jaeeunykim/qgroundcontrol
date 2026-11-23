@@ -24,6 +24,7 @@ Rectangle {
     property real missionTime: _controllerValid ? _planMasterController.missionController.missionTime : 0
     property real missionMaxTelemetry: _controllerValid ? _planMasterController.missionController.missionMaxTelemetry : NaN
     property bool _controllerValid: _planMasterController !== undefined && _planMasterController !== null
+    readonly property bool _isBoat: _controllerValid && _planMasterController.controllerVehicle ? _planMasterController.controllerVehicle.boat : false
 
     property bool _currentMissionItemValid: _currentMissionItem && _currentMissionItem !== undefined && _currentMissionItem !== null
     property bool _currentItemIsVTOLTakeoff: _currentMissionItemValid && _currentMissionItem.command == 84
@@ -64,6 +65,9 @@ Rectangle {
 
     function getMissionTime() {
         var totalSeconds = Number(_missionTime)
+        if (_isBoat && !isFinite(totalSeconds)) {
+            return qsTr("N/A")
+        }
         if (!totalSeconds) {
             return "00:00:00"
         }
@@ -100,8 +104,10 @@ Rectangle {
                     font.pointSize: ScreenTools.smallFontPointSize
                 }
 
-                QGCLabel { text: qsTr("Alt diff:"); font.pointSize: _dataFontSize; }
+                QGCLabel { text: qsTr("Alt diff:"); font.pointSize: _dataFontSize; visible: !missionStats._isBoat }
                 QGCLabel {
+                    objectName: "missionStats_altDifference"
+                    visible: !missionStats._isBoat
                     text: _altDifferenceText
                     font.pointSize: _dataFontSize
                     Layout.minimumWidth: _mediumValueWidth
@@ -125,8 +131,10 @@ Rectangle {
                     Layout.minimumWidth: _largeValueWidth
                 }
 
-                QGCLabel { text: qsTr("Gradient:"); font.pointSize: _dataFontSize; }
+                QGCLabel { text: qsTr("Gradient:"); font.pointSize: _dataFontSize; visible: !missionStats._isBoat }
                 QGCLabel {
+                    objectName: "missionStats_gradient"
+                    visible: !missionStats._isBoat
                     text: _gradientText
                     font.pointSize: _dataFontSize
                     Layout.minimumWidth: _mediumValueWidth

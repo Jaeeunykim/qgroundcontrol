@@ -33,15 +33,18 @@ The working baseline is **v5.1.5** on **`feature/boat`**. P1 identity and offlin
 implemented on **`feat/boat-identity-offline-plan`**, with passing local automated tests.
 P2 navigation action adaptations are implemented on **`feat/boat-navigation-actions`**, with local
 automated regression coverage; validation against the target PX4 firmware and vessel remains pending.
-Later stages remain planned, and these changes have not been accepted upstream.
+P3 basic mission planning, ground-speed editing, and altitude UI adaptations are implemented on
+**`feat/boat-mission-planning`**, with local automated coverage. P4/P5 remain planned.
+These changes have not been accepted upstream.
 The first integration target is **PX4/Pixhawk ↔ MAVLink ↔ QGC**.
 Boat support must remain independent of the vessel's onboard equipment, including badaMux.
 
 - [ ] Define the PX4-to-QGC telemetry contract and record the tested firmware and MAVLink versions.
 - [x] Implement and automatically test Boat identity during connection, offline planning, plan save/load, and vehicle switching (P1).
 - [x] Implement Boat navigation action adaptations and automated command/UI regression tests (P2).
-- [ ] Accept P1/P2 on the target PX4 firmware and vessel; complete outstanding manual checks and lint requirements.
-- [ ] Adapt QML mission editors, speed settings, default instruments, and user-facing wording.
+- [ ] Accept P1/P2/P3 on the target PX4 firmware and vessel; complete outstanding manual checks and lint requirements.
+- [x] Implement basic Boat mission editors, ground-speed round trips, altitude UI adaptations, and aircraft-command upload guards (P3).
+- [ ] Adapt default instruments, icons, and remaining user-facing wording (P4).
 - [ ] Verify missing/stale telemetry, disconnect/reconnect, and Rover/aircraft compatibility.
 - [ ] Prepare focused upstream PRs with tests, UI evidence, and documented limitations.
 
@@ -54,6 +57,8 @@ manual/device coverage recorded in the implementation plan. Checked items above 
 implementation and automated tests, not device acceptance or upstream approval.
 See the [P2 testing record](docs/development/boat/P2_TESTING.md) for navigation actions, command semantics,
 regression coverage, and the separate P2 build/run commands.
+See the [P3 testing record](docs/development/boat/P3_TESTING.md) for basic mission planning, speed
+round trips, altitude UI, and imported command handling.
 
 ## badaMux product communication specification
 

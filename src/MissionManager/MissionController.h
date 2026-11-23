@@ -222,7 +222,8 @@ public:
     int readyForSaveState(void) const;
 
     /// Sends the mission items to the specified vehicle
-    static void sendItemsToVehicle(Vehicle* vehicle, QmlObjectListModel* visualMissionItems);
+    /// Returns whether the upload was started, not whether the vehicle accepted the mission.
+    static bool sendItemsToVehicle(Vehicle* vehicle, QmlObjectListModel* visualMissionItems);
 
     bool loadTextFile(QFile& file, QString& errorString);
 
