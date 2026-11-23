@@ -14,19 +14,35 @@ ColumnLayout {
 
     Loader {
         id:     modelContainer
+        objectName: "preFlightChecklist_model"
         source: "qrc:/qml/QGroundControl/FlyView/DefaultChecklist.qml"
     }
 
     property bool allChecksPassed:  false
     property var  vehicleCopy:      globals.activeVehicle
 
-    onVehicleCopyChanged: {
-        if (checkListRepeater.model) {
+    function _resetForVehicleChange() {
+        if (delayedGroupPassed) {
+            delayedGroupPassed.stop()
+        }
+        allChecksPassed = false
+        _updateModel()
+        if (checkListRepeater && checkListRepeater.model) {
             checkListRepeater.model.reset()
         }
     }
 
+    onVehicleCopyChanged: _resetForVehicleChange()
+
+    Connections {
+        target: vehicleCopy
+        function onVehicleTypeChanged() { _resetForVehicleChange() }
+    }
+
     onAllChecksPassedChanged: {
+        if (!globals.activeVehicle) {
+            return
+        }
         if (allChecksPassed) {
             globals.activeVehicle.checkListState = Vehicle.CheckListPassed
         } else {
@@ -35,22 +51,31 @@ ColumnLayout {
     }
 
     function _handleGroupPassedChanged(index, passed) {
+        if (index < 0 || index >= checkListRepeater.count) {
+            return
+        }
         if (passed) {
             // Collapse current group
             var group = checkListRepeater.itemAt(index)
+            if (!group) {
+                return
+            }
             group._checked = false
             // Expand next group
             if (index + 1 < checkListRepeater.count) {
                 group = checkListRepeater.itemAt(index + 1)
-                group.enabled = true
-                group._checked = true
+                if (group) {
+                    group.enabled = true
+                    group._checked = true
+                }
             }
         }
 
         // Walk the list and check if any group is failing
-        var allPassed = true
+        var allPassed = checkListRepeater.count > 0
         for (var i=0; i < checkListRepeater.count; i++) {
-            if (!checkListRepeater.itemAt(i).passed) {
+            var item = checkListRepeater.itemAt(i)
+            if (!item || !item.passed) {
                 allPassed = false
                 break
             }
@@ -60,12 +85,17 @@ ColumnLayout {
 
     //-- Pick a checklist model that matches the current airframe type (if any)
     function _updateModel() {
+        if (!modelContainer) {
+            return
+        }
         var vehicle = globals.activeVehicle
         if (!vehicle) {
             vehicle = QGroundControl.multiVehicleManager.offlineEditingVehicle
         }
 
-        if(vehicle.multiRotor) {
+        if (!vehicle) {
+            modelContainer.source = "qrc:/qml/QGroundControl/FlyView/DefaultChecklist.qml"
+        } else if(vehicle.multiRotor) {
             modelContainer.source = "qrc:/qml/QGroundControl/FlyView/MultiRotorChecklist.qml"
         } else if(vehicle.vtol) {
             modelContainer.source = "qrc:/qml/QGroundControl/FlyView/VTOLChecklist.qml"
@@ -96,6 +126,7 @@ ColumnLayout {
     // We delay the updates when a group passes so the user can see all items green for a moment prior to hiding
     Timer {
         id:         delayedGroupPassed
+        objectName: "preFlightChecklist_delay"
         interval:   750
 
         property int index
@@ -140,6 +171,6 @@ ColumnLayout {
     // All check list items
     Repeater {
         id:     checkListRepeater
-        model:  modelContainer.item.model
+        model:  modelContainer.item ? modelContainer.item.model : null
     }
 }

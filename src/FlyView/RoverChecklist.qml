@@ -7,11 +7,15 @@ import QGroundControl.Controls
 import QGroundControl.FlyView
 
 Item {
+    id: root
     property var model: listModel
+    readonly property var _vehicle: globals.activeVehicle ? globals.activeVehicle : QGroundControl.multiVehicleManager.offlineEditingVehicle
+    readonly property bool _isBoat: _vehicle ? _vehicle.boat : false
     PreFlightCheckModel {
         id:     listModel
         PreFlightCheckGroup {
-            name: qsTr("Rover Initial Checks")
+            objectName: "roverChecklist_initialChecks"
+            name: root._isBoat ? qsTr("Boat Initial Checks") : qsTr("Rover Initial Checks")
 
             PreFlightCheckButton {
                 name:           qsTr("Hardware")
@@ -39,8 +43,9 @@ Item {
             name: qsTr("Please arm the vehicle here")
 
             PreFlightCheckButton {
+                objectName:     "roverChecklist_missionCheck"
                 name:           qsTr("Mission")
-                manualText:     qsTr("Please confirm mission is valid (waypoints valid, no terrain collision).")
+                manualText:     root._isBoat ? qsTr("Please confirm waypoints and the water route are valid for this vessel.") : qsTr("Please confirm mission is valid (waypoints valid, no terrain collision).")
             }
 
             PreFlightSoundCheck {
@@ -48,7 +53,7 @@ Item {
         }
 
         PreFlightCheckGroup {
-            name: qsTr("Last preparations before launch")
+            name: root._isBoat ? qsTr("Last preparations before departure") : qsTr("Last preparations before launch")
 
             // Check list item group 2 - Final checks before launch
             PreFlightCheckButton {

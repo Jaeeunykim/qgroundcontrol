@@ -16,6 +16,7 @@
 | 기체 카드 | 대지속도·Heading 두 항목 | 기존 Rover·항공기 카드 구성 유지 |
 | 사용자 배치 | Boat 전용 저장 키, 기존 공용 Rover/Boat 배치 최초 1회 복사 | 기존 공용 배치는 삭제·수정하지 않으며 이후 Boat 편집은 별도 저장 |
 | 기본값 초기화 | Boat 배치만 기본값으로 초기화 | Rover·드론 배치 보존, 이전 배치를 매번 다시 가져오지 않음 |
+| 공통 체크리스트 | Boat 초기 점검·출항·수상 항로 문구, 기체/타입 변경 시 점검 상태·지연 콜백 초기화 | 기존 Rover 점검 항목·임계값과 다른 기체의 모델 선택 유지 |
 | 상단 상태 | Boat가 `flying/landing` 플래그를 보고해도 `Armed`로 표시, 공중 상태로 해석하지 않음 | Rover·드론 기존 문구·조건 유지, 단절/복구·기체 없음 표시 유지 |
 
 `Armed`는 PX4의 armed 상태다. 실제 이동·엔진 시동·추진 정지를 새로 추정하지 않는다.
@@ -58,13 +59,13 @@ Boat:  새 키로 편집·저장·복원
 | 같은 테스트 | 기존 Fact의 NaN과 유효한 대지속도 0·Heading 0 구분. 수신 만료 검증을 대신하지 않음 |
 | `BoatTelemetryTest` | 실제 VFR_HUD/ATTITUDE/GPS_RAW_INT 파싱으로 초기 미수신·무효 속도·유효한 0, Heading≠COG와 GPS sentinel 검증 |
 | 같은 테스트 | m/ft·m/s/knots와 무관한 복귀 예상시간, 무효 거리/속도 후 이전 예상값 제거·회복, 기존 Rover·드론 경로 유지 |
+| `BoatChecklistTest` | 실제 체크리스트의 Boat/Rover/Multirotor/FixedWing/VTOL/Sub 전환, 통과 상태 분리·지연 콜백 취소·동일 객체 타입 변경·null 처리 |
 | `BoatStatusTest` | 실제 MainStatusIndicator에서 Boat armed/flying/landing, Rover·멀티로터·고정익·VTOL, 단절/복구·null 상태 |
 
-초기 기본 표시의 관련 CTest 215개와 전체 Unit 199개가 통과했다.
-미수신·무효 텔레메트리 및 COG 보완 후에는 전체 Unit 200개를 포함한 관련 CTest 216개가 통과했다.
+최종 기본 표시·텔레메트리·공통 점검 변경에서 전체 Unit 200개를 포함한 관련 CTest 217개가 통과했다.
 최종 `ctest -L Unit` 단독 실행도 200개 모두 통과했다.
 원본 로그와 목록은 로컬 `build/boat-p3/boat-p4-validation/`과
-`build/boat-p3/boat-telemetry-validation/`에 보관한다.
+`build/boat-p3/boat-telemetry-validation/`, `build/boat-p3/boat-checklist-validation/`에 보관한다.
 
 - Mac 앱·테스트 빌드 통과.
 - 변경 생산 C++ 3개 Clang-Tidy 종료 코드 0. 기존 경고는 남아 있으며 분석용 compile database에서 AppleClang PCH를 제외했다.
@@ -89,6 +90,15 @@ Boat:  새 키로 편집·저장·복원
 - 기본 계기판의 GPS Course Over Ground와 Heading을 서로 덮어쓰거나 대신하지 않는다.
 - 이 보완은 명시적인 미수신/무효 상태 처리다. 메시지별 타임아웃·지연·단절 후 값 만료의 전체 구현은 아니다.
 
+### 추가 보완: 공통 체크리스트와 기체 전환
+
+- Rover/Boat 공통 점검 모델을 계속 재사용하며 Boat 제목·출항·수상 항로 확인 문구를 구분한다.
+  기존 배터리/GPS/RC 점검 기준을 임의로 바꾸거나 새로운 선박 장비의 자동 점검을 가정하지 않는다.
+- 기체 포인터 또는 타입이 바뀌면 이전 점검 통과 상태를 해제하고 현재 타입의 모델을 선택·초기화한다.
+- 이전 그룹의 통과 지연 타이머를 중지하고 빈 모델·전환 중 생성되지 않은 그룹을 통과로 처리하지 않는다.
+- 연결 기체가 없어도 체크리스트 상태를 null 기체에 쓰지 않는다.
+- 같은 기체의 화면을 다시 여는 기존 흐름과 다른 기체의 모델 선택은 유지한다.
+
 ## 4. 실행과 수동 확인
 
 P4 로컬 검증은 기존 `build/boat-p3` 빌드 디렉터리를 재사용했다.
@@ -112,7 +122,7 @@ ctest --test-dir build/boat-p3 --output-on-failure --parallel 2 \
 
 - 원천별 유효성의 나머지 조건·수신 만료·복구 정책과 펌웨어 메시지 계약 확정.
 - 실제 조이스틱의 조향·추진·중립·역추진·입력 상실과 제어권 검증.
-- Boat 출항 체크리스트와 나머지 화면 문구, 필요한 화면별 접근성 검토.
+- 선박·운용환경별 장비 점검 항목·임계값·체크리스트 인수와 나머지 화면 문구·접근성 검토.
 - Android/좁은 화면, 실제 PX4/SITL·실선, 사용자 장기 저장 설정에 대한 수동 인수.
 
 기본 표시의 자동 검증을 P4 전체 완료, 실제 선박 인수 또는 공식 QGC 지원 승인으로 기록하지 않는다.
