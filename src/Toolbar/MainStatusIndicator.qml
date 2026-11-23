@@ -10,12 +10,13 @@ RowLayout {
 
     property var    _activeVehicle:     QGroundControl.multiVehicleManager.activeVehicle
     property bool   _armed:             _activeVehicle ? _activeVehicle.armed : false
+    readonly property bool _vehicleIsBoat: _activeVehicle ? _activeVehicle.boat : false
     property real   _margins:           ScreenTools.defaultFontPixelWidth
     property real   _spacing:           ScreenTools.defaultFontPixelWidth / 2
     property bool   _allowForceArm:      false
     property bool   _healthAndArmingChecksSupported: _activeVehicle ? _activeVehicle.healthAndArmingCheckReport.supported : false
     property bool   _vehicleFlies:      _activeVehicle ? _activeVehicle.airShip || _activeVehicle.fixedWing || _activeVehicle.vtol || _activeVehicle.multiRotor : false
-    property var    _vehicleInAir:      _activeVehicle ? _activeVehicle.flying || _activeVehicle.landing : false
+    property var    _vehicleInAir:      _activeVehicle ? !_vehicleIsBoat && (_activeVehicle.flying || _activeVehicle.landing) : false
     property bool   _vtolInFWDFlight:   _activeVehicle ? _activeVehicle.vtolInFwdFlight : false
 
     function dropMainStatusIndicator() {
@@ -27,6 +28,7 @@ RowLayout {
 
     QGCLabel {
         id:                 mainStatusLabel
+        objectName:         "mainStatus_text"
         Layout.fillHeight:  true
         Layout.preferredWidth: contentWidth + (vehicleMessagesIcon.visible ? vehicleMessagesIcon.width + control.spacing : 0)
         verticalAlignment:  Text.AlignVCenter
@@ -62,7 +64,9 @@ RowLayout {
                         }
                     }
 
-                    if (_activeVehicle.flying) {
+                    if (_vehicleIsBoat) {
+                        return mainStatusLabel._armedText
+                    } else if (_activeVehicle.flying) {
                         return mainStatusLabel._flyingText
                     } else if (_activeVehicle.landing) {
                         return mainStatusLabel._landingText

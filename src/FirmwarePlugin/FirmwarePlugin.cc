@@ -44,6 +44,18 @@ AutoPilotPlugin *FirmwarePlugin::autopilotPlugin(Vehicle *vehicle) const
     return new GenericAutoPilotPlugin(vehicle, vehicle);
 }
 
+QString FirmwarePlugin::vehicleImageOpaque(const Vehicle* vehicle) const
+{
+    return vehicle && vehicle->boat() ? QStringLiteral("/qmlimages/boatOpaque.svg")
+                                      : QStringLiteral("/qmlimages/vehicleArrowOpaque.svg");
+}
+
+QString FirmwarePlugin::vehicleImageOutline(const Vehicle* vehicle) const
+{
+    return vehicle && vehicle->boat() ? QStringLiteral("/qmlimages/boatOutline.svg")
+                                      : QStringLiteral("/qmlimages/vehicleArrowOutline.svg");
+}
+
 QString FirmwarePlugin::flightMode(uint8_t base_mode, uint32_t custom_mode) const
 {
     Q_UNUSED(custom_mode);

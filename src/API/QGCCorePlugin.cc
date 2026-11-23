@@ -191,6 +191,32 @@ void QGCCorePlugin::factValueGridCreateDefaultSettings(FactValueGrid* factValueG
     FactValueGrid::FontSize defaultFontSize = FactValueGrid::MediumFontSize;
 #endif
 
+    const Vehicle* vehicle = factValueGrid->currentVehicle();
+    if (vehicle && vehicle->boat()) {
+        factValueGrid->setFontSize(defaultFontSize);
+        factValueGrid->appendColumn();
+        factValueGrid->appendColumn();
+        const bool card = factValueGrid->specificVehicleForCard();
+        if (!card) {
+            factValueGrid->appendRow();
+        }
+        const QStringList facts =
+            card ? QStringList{QStringLiteral("GroundSpeed"), QStringLiteral("Heading")}
+                 : QStringList{QStringLiteral("GroundSpeed"), QStringLiteral("Heading"),
+                               QStringLiteral("DistanceToHome"), QStringLiteral("DistanceToNextWP")};
+        const int rows = card ? 1 : 2;
+        for (int index = 0; index < facts.count(); index++) {
+            auto* column = factValueGrid->columns()->value<QmlObjectListModel*>(index / rows);
+            auto* value = column->value<InstrumentValueData*>(index % rows);
+            value->setFact(QStringLiteral("Vehicle"), facts[index]);
+            if (value->fact()) {
+                value->setText(value->fact()->shortDescription());
+            }
+            value->setShowUnits(true);
+        }
+        return;
+    }
+
     if (factValueGrid->specificVehicleForCard()) {
         bool includeFWValues = factValueGrid->vehicleClass() == QGCMAVLink::VehicleClassFixedWing || factValueGrid->vehicleClass() == QGCMAVLink::VehicleClassVTOL || factValueGrid->vehicleClass() == QGCMAVLink::VehicleClassAirship;
 

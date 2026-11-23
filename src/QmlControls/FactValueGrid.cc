@@ -98,7 +98,8 @@ QGCMAVLinkTypes::VehicleClass_t FactValueGrid::vehicleClass(void) const
 void FactValueGrid::resetToDefaults(void)
 {
     QSettings settings;
-    settings.remove(_settingsGroup);
+    const Vehicle* vehicle = currentVehicle();
+    settings.remove(vehicle && vehicle->boat() ? _settingsKey() : _settingsGroup);
     _resetFromSettings();
 }
 
@@ -299,6 +300,10 @@ void FactValueGrid::_saveSettings(void)
 
 QString FactValueGrid::_settingsKey(void)
 {
+    const Vehicle* vehicle = currentVehicle();
+    if (vehicle && vehicle->boat()) {
+        return QStringLiteral("%1-Boat").arg(_settingsGroup);
+    }
     return QStringLiteral("%1-%2").arg(_settingsGroup).arg(vehicleClass());
 }
 
@@ -312,7 +317,29 @@ void FactValueGrid::_resetFromSettings(void)
     _rowCount   = 0;
 
     QSettings   settings;
-    QString     groupNameFormat("%1-%2");
+    const Vehicle* vehicle = currentVehicle();
+    if (vehicle && vehicle->boat()) {
+        const QString initializedKey = QStringLiteral("%1-BoatInitialized").arg(_settingsGroup);
+        if (!settings.value(initializedKey, false).toBool()) {
+            // The former Rover/Boat group may contain a user's layout; copy it once without altering it.
+            const QString legacyKey = QStringLiteral("%1-%2").arg(_settingsGroup).arg(vehicleClass());
+            if (!settings.childGroups().contains(_settingsKey()) && settings.childGroups().contains(legacyKey)) {
+                settings.beginGroup(legacyKey);
+                QVariantMap savedValues;
+                const QStringList keys = settings.allKeys();
+                for (const QString& key : keys) {
+                    savedValues.insert(key, settings.value(key));
+                }
+                settings.endGroup();
+                settings.beginGroup(_settingsKey());
+                for (auto it = savedValues.cbegin(); it != savedValues.cend(); ++it) {
+                    settings.setValue(it.key(), it.value());
+                }
+                settings.endGroup();
+            }
+            settings.setValue(initializedKey, true);
+        }
+    }
 
     if (settings.childGroups().contains(_settingsKey())) {
         // Load from settings

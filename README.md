@@ -34,7 +34,8 @@ implemented on **`feat/boat-identity-offline-plan`**, with passing local automat
 P2 navigation action adaptations are implemented on **`feat/boat-navigation-actions`**, with local
 automated regression coverage; validation against the target PX4 firmware and vessel remains pending.
 P3 basic mission planning, ground-speed editing, and altitude UI adaptations are implemented on
-**`feat/boat-mission-planning`**, with local automated coverage. P4/P5 remain planned.
+**`feat/boat-mission-planning`**, with local automated coverage. P4 basic presentation and layout
+preservation are implemented on **`feat/boat-ui`**; remaining operational UI and P5 remain pending.
 These changes have not been accepted upstream.
 The first integration target is **PX4/Pixhawk ↔ MAVLink ↔ QGC**.
 Boat support must remain independent of the vessel's onboard equipment, including badaMux.
@@ -44,7 +45,8 @@ Boat support must remain independent of the vessel's onboard equipment, includin
 - [x] Implement Boat navigation action adaptations and automated command/UI regression tests (P2).
 - [ ] Accept P1/P2/P3 on the target PX4 firmware and vessel; complete outstanding manual checks and lint requirements.
 - [x] Implement basic Boat mission editors, ground-speed round trips, altitude UI adaptations, and aircraft-command upload guards (P3).
-- [ ] Adapt default instruments, icons, and remaining user-facing wording (P4).
+- [x] Implement Boat map icons, default instruments, layout preservation, and armed-state wording (P4 basic presentation).
+- [ ] Complete remaining telemetry validity, manual-control, checklist, and platform acceptance work (P4).
 - [ ] Verify missing/stale telemetry, disconnect/reconnect, and Rover/aircraft compatibility.
 - [ ] Prepare focused upstream PRs with tests, UI evidence, and documented limitations.
 
@@ -59,6 +61,8 @@ See the [P2 testing record](docs/development/boat/P2_TESTING.md) for navigation 
 regression coverage, and the separate P2 build/run commands.
 See the [P3 testing record](docs/development/boat/P3_TESTING.md) for basic mission planning, speed
 round trips, altitude UI, and imported command handling.
+See the [P4 testing record](docs/development/boat/P4_TESTING.md) for icons, instruments, settings migration,
+status wording, and remaining P4 work.
 
 ## badaMux product communication specification
 
