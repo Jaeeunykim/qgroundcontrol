@@ -2,6 +2,7 @@
 
 #include <QtCore/QRegularExpression>
 #include <QtTest/QSignalSpy>
+#include <limits>
 
 #include "Fact.h"
 #include "FirmwarePlugin.h"
@@ -14,8 +15,90 @@
 #include "SimpleMissionItem.h"
 #include "SpeedSection.h"
 #include "Vehicle.h"
+#include "VehicleLinkManager.h"
 
 UT_REGISTER_TEST(BoatNavigationTest, TestLabel::Integration, TestLabel::Vehicle)
+
+void BoatNavigationTest::_checkManualControlCount(int expected)
+{
+    auto* manager = _vehicle->vehicleLinkManager();
+    QVERIFY(manager);
+    const auto link = manager->primaryLink().lock();
+    QVERIFY(link);
+    const int previous = _mockLink->receivedMavlinkMessageCount(MAVLINK_MSG_ID_PING);
+    mavlink_ping_t ping{};
+    ping.seq = previous + 1;
+    ping.target_system = _vehicle->id();
+    ping.target_component = _vehicle->compId();
+    mavlink_message_t message{};
+    mavlink_msg_ping_encode(255, MAV_COMP_ID_MISSIONPLANNER, &message, &ping);
+    // A following packet is a queue barrier for both transmitted and rejected control inputs.
+    QVERIFY(_vehicle->sendMessageOnLinkThreadSafe(link.get(), message));
+    QTRY_VERIFY_WITH_TIMEOUT(_mockLink->receivedMavlinkMessageCount(MAVLINK_MSG_ID_PING) > previous,
+                             TestTimeout::mediumMs());
+    QCOMPARE(_mockLink->receivedMavlinkMessageCount(MAVLINK_MSG_ID_MANUAL_CONTROL), expected);
+}
+
+void BoatNavigationTest::_virtualJoystickMapping_data()
+{
+    QTest::addColumn<int>("type");
+    for (const auto type : {MAV_TYPE_SURFACE_BOAT, MAV_TYPE_GROUND_ROVER, MAV_TYPE_QUADROTOR, MAV_TYPE_FIXED_WING,
+                            MAV_TYPE_VTOL_TILTROTOR}) {
+        QTest::newRow(QStringLiteral("type%1").arg(type).toLatin1().constData()) << int(type);
+    }
+}
+
+void BoatNavigationTest::_virtualJoystickMapping()
+{
+    QFETCH(int, type);
+    _connectVehicle(static_cast<MAV_TYPE>(type));
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    _vehicle->virtualTabletJoystickValue(0.25, -0.5, 0.75, -1.0);
+    _checkManualControlCount(1);
+    mavlink_message_t message{};
+    QVERIFY(_mockLink->lastReceivedMavlinkMessage(MAVLINK_MSG_ID_MANUAL_CONTROL, message));
+    mavlink_manual_control_t control{};
+    mavlink_msg_manual_control_decode(&message, &control);
+    QCOMPARE(control.target, _vehicle->id());
+    QCOMPARE(control.x, -500);
+    QCOMPARE(control.y, 250);
+    QCOMPARE(control.r, 750);
+    QCOMPARE(control.z, -1000);
+}
+
+void BoatNavigationTest::_virtualJoystickRejectsInvalidInput()
+{
+    _connectVehicle(MAV_TYPE_SURFACE_BOAT);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    for (const double invalid : {qQNaN(), std::numeric_limits<double>::infinity(), -2.0, 2.0}) {
+        for (int index = 0; index < 4; ++index) {
+            double axes[] = {0.0, 0.0, 0.0, 0.0};
+            axes[index] = invalid;
+            _vehicle->virtualTabletJoystickValue(axes[0], axes[1], axes[2], axes[3]);
+        }
+    }
+    _checkManualControlCount(0);
+    auto* manager = MultiVehicleManager::instance();
+    manager->setActiveVehicle(nullptr);
+    QTRY_VERIFY_WITH_TIMEOUT(manager->activeVehicle() != _vehicle, TestTimeout::mediumMs());
+    _vehicle->virtualTabletJoystickValue(1.0, 1.0, 1.0, 1.0);
+    _checkManualControlCount(0);
+    manager->setActiveVehicle(_vehicle);
+    QTRY_COMPARE_WITH_TIMEOUT(manager->activeVehicle(), _vehicle, TestTimeout::mediumMs());
+
+    _mockLink->setCommLost(true);
+    QTRY_VERIFY_WITH_TIMEOUT(_vehicle->vehicleLinkManager()->communicationLost(), TestTimeout::mediumMs());
+    _vehicle->virtualTabletJoystickValue(1.0, 1.0, 1.0, 1.0);
+    _mockLink->setCommLost(false);
+    _checkManualControlCount(0);
+    QTRY_VERIFY_WITH_TIMEOUT(!_vehicle->vehicleLinkManager()->communicationLost(), TestTimeout::mediumMs());
+    _vehicle->virtualTabletJoystickValue(0.0, 0.0, 0.0, 0.0);
+    _checkManualControlCount(1);
+}
 
 void BoatNavigationTest::_connectVehicle(MAV_TYPE type, bool commandInt)
 {

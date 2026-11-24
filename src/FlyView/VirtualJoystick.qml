@@ -19,12 +19,71 @@ Item {
     property real  uiTotalWidth:           0
     property real  uiRealX:                 0
 
+    readonly property bool _boat: _activeVehicle ? _activeVehicle.boat : false
+    readonly property bool _joystickEnabled: QGroundControl.settingsManager.appSettings.virtualJoystick.value
+    readonly property bool _boatControlAvailable: _boat && _initialConnectComplete && visible && enabled
+                                                 && _joystickEnabled && _activeVehicle.vehicleLinkManager
+                                                 && !_activeVehicle.vehicleLinkManager.communicationLost
+    readonly property bool _leftHanded: leftHandedMode
+    readonly property bool _centerThrottle: autoCenterThrottle
+    property bool _componentReady: false
+    property bool _boatWasTarget: false
+    property bool _boatInputReady: false
+
+    Component.onCompleted: {
+        _componentReady = true
+        updateInputTarget()
+    }
+    on_ActiveVehicleChanged: updateInputTarget()
+    on_BoatChanged: updateInputTarget()
+    on_BoatControlAvailableChanged: {
+        if (_boat) {
+            cancelBoatInput()
+        }
+    }
+    on_LeftHandedChanged: {
+        if (_boat) {
+            cancelBoatInput()
+        }
+    }
+    on_CenterThrottleChanged: {
+        if (_boat) {
+            cancelBoatInput()
+        }
+    }
+    onStickActiveChanged: {
+        if (stickActive && _boatControlAvailable) {
+            _boatInputReady = true
+        }
+    }
+
+    function updateInputTarget() {
+        if (!_componentReady) {
+            return
+        }
+        if (_boat || _boatWasTarget) {
+            cancelBoatInput()
+        }
+        _boatWasTarget = _boat
+    }
+
+    function cancelBoatInput() {
+        if (!_componentReady) {
+            return
+        }
+        _boatInputReady = false
+        leftStick.cancelInput()
+        rightStick.cancelInput()
+        leftYAxisValue = leftStick.yAxis
+    }
+
     Timer {
+        objectName: "virtualJoystick_poll"
         interval:   40  // 25Hz, same as real joystick rate
-        running:    QGroundControl.settingsManager.appSettings.virtualJoystick.value
+        running:    _joystickEnabled
         repeat:     true
         onTriggered: {
-            if (_activeVehicle && _initialConnectComplete) {
+            if (_activeVehicle && _initialConnectComplete && (!_boat || (_boatControlAvailable && _boatInputReady))) {
                 leftHandedMode ? _activeVehicle.virtualTabletJoystickValue(leftStick.xAxis, leftStick.yAxis, rightStick.xAxis, rightStick.yAxis) : _activeVehicle.virtualTabletJoystickValue(rightStick.xAxis, rightStick.yAxis, leftStick.xAxis, leftStick.yAxis)
             }
             leftYAxisValue = leftStick.yAxis // We keep Y axis value from the throttle stick for using it while there is a resize
@@ -58,6 +117,7 @@ Item {
 
     JoystickThumbPad {
         id:                     leftStick
+        objectName:             "virtualJoystick_leftStick"
         anchors.leftMargin:     xPositionDelta
         anchors.bottomMargin:   -yPositionDelta
         anchors.left:           parent.left
@@ -70,6 +130,7 @@ Item {
 
     JoystickThumbPad {
         id:                     rightStick
+        objectName:             "virtualJoystick_rightStick"
         anchors.rightMargin:    -xPositionDelta
         anchors.bottomMargin:   -yPositionDelta
         anchors.right:          parent.right

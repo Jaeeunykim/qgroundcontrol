@@ -18,6 +18,7 @@ Item {
 
     property real   _centerXY:              width / 2
     property bool   _processTouchPoints:    false
+    property bool   _inputCancelled:        false
     property color  _fgColor:               QGroundControl.globalPalette.text
     property color  _bgColor:               QGroundControl.globalPalette.window
     property real   _hatWidth:              ScreenTools.defaultFontPixelHeight
@@ -31,10 +32,14 @@ Item {
 
     onStickPositionXChanged:            calculateXAxis()
     onStickPositionYChanged:            calculateYAxis()
-    onYAxisPositiveRangeOnlyChanged:    calculateYAxis()
+    onYAxisPositiveRangeOnlyChanged:    _inputCancelled ? cancelInput() : calculateYAxis()
     onYAxisReCenterChanged:             yAxisReCentered()
 
     function yAxisReCentered() {
+        if (_inputCancelled) {
+            cancelInput()
+            return yAxis
+        }
         if( yAxisReCenter ) {
             yAxis = yAxisPositiveRangeOnly ? 0.5 : 0
             stickPositionY = _joyRoot.height / 2
@@ -53,6 +58,10 @@ Item {
 
     //We prevent Joystick to move while the screen is resizing
     function resize( yPositionAfterResize ) {
+        if (_inputCancelled) {
+            cancelInput()
+            return
+        }
         if(_joyRoot.height <= 0) {
             return;
         }
@@ -88,7 +97,24 @@ Item {
         yAxis = rangeUp
     }
 
+    function cancelInput() {
+        _inputCancelled = true
+        _processTouchPoints = false
+        touchActive = false
+        xPositionDelta = 0
+        yPositionDelta = 0
+        stickPositionX = width / 2
+        stickPositionY = yAxisPositiveRangeOnly ? height : height / 2
+        // Explicit values also clear a hidden pad, whose position handlers do not update axes.
+        xAxis = 0
+        yAxis = 0
+    }
+
     function reCenter() {
+        if (_inputCancelled) {
+            cancelInput()
+            return
+        }
         _processTouchPoints = false
         _centerXY = _joyRoot.width / 2 // Reload before using it to make sure of using the right value
         // Move control back to original position
@@ -103,6 +129,7 @@ Item {
     }
 
     function thumbDown(touchPoints) {
+        _inputCancelled = false
         // Position the control around the initial thumb position
         _centerXY = _joyRoot.width / 2  // make sure to know the correct center of the item
 
@@ -128,6 +155,11 @@ Item {
         }
         // We need to wait until we move the control to the right position before we process touch points
         _processTouchPoints = true
+    }
+
+    function releaseInput() {
+        touchActive = false
+        reCenter()
     }
 
     /*
@@ -262,12 +294,10 @@ Item {
             _joyRoot.thumbDown(touchPoints)
         }
         onReleased: {
-            _joyRoot.touchActive = false
-            _joyRoot.reCenter()
+            _joyRoot.releaseInput()
         }
         onCanceled: {
-            _joyRoot.touchActive = false
-            _joyRoot.reCenter()
+            _joyRoot.releaseInput()
         }
     }
 }

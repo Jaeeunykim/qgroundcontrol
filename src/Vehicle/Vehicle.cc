@@ -1736,6 +1736,16 @@ void Vehicle::virtualTabletJoystickValue(double roll, double pitch, double yaw, 
     // The following if statement prevents the virtualTabletJoystick from sending values if the standard joystick is enabled
     bool isActiveVehicle = (MultiVehicleManager::instance()->activeVehicle() == this);
     bool joystickEnabled = isActiveVehicle && JoystickManager::instance()->activeJoystickEnabledForActiveVehicle();
+    if (boat()) {
+        if (!isActiveVehicle || !isInitialConnectComplete() || _vehicleLinkManager->communicationLost()) {
+            return;
+        }
+        for (const double axis : {roll, pitch, yaw, thrust}) {
+            if (!qIsFinite(axis) || axis < -1.0 || axis > 1.0) {
+                return;
+            }
+        }
+    }
     if (!joystickEnabled) {
         sendJoystickDataThreadSafe(
                     static_cast<float>(roll),

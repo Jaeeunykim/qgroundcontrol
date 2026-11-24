@@ -22,8 +22,12 @@ private slots:
     void _planSpeedVehicleRoundTrip();
     void _rejectAircraftMission_data();
     void _rejectAircraftMission();
+    void _virtualJoystickMapping_data();
+    void _virtualJoystickMapping();
+    void _virtualJoystickRejectsInvalidInput();
 
 private:
     void _connectVehicle(MAV_TYPE type, bool commandInt = false);
     bool _hasResult(const QSignalSpy& spy, MAV_RESULT result) const;
+    void _checkManualControlCount(int expected);
 };

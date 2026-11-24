@@ -139,6 +139,45 @@ Vehicle null 검사에는 기준 코드의 `getParameter()` 경고 2개가 남�
 SITL 수동 인수에서는 전체 MAVLink 송신 중단→단절→heartbeat만 재개→각 stream 재개를 나누어 확인한다.
 재연결 자체를 새 센서 값 또는 명령 재실행의 근거로 사용하지 않는다.
 
+### 추가 보완: Boat 가상 조이스틱 입력 세션 — 2026-11-24
+
+작업 브랜치는 `feat/boat-virtual-joystick`이며 연결 복구 커밋 `e93ca99fc`에서 분기했다.
+
+- Boat에서는 초기 연결 완료·통신 정상·조이스틱 설정 켜짐·컨트롤 표시/활성 상태를 모두 확인하고,
+  해당 상태에서 새 터치를 시작한 뒤에만 기존 25Hz 입력 송신을 시작한다.
+- Boat 간 전환, Boat 진입/이탈, 기체 없음, 연결 단절, 화면 숨김/비활성화, 초기 연결 상태와
+  조이스틱 설정·좌우 배치·자동 복귀 옵션 변경 시 이전 입력 세션을 취소한다.
+- 취소는 축 값 0과 터치 추적 해제를 뜻한다. 뒤늦게 도착한 이전 터치의 release/cancel 또는
+  화면 크기 변경이 새 기체의 축 값을 다시 바꾸지 못하게 한다. 재연결·재표시 자체로 송신을 재개하지 않는다.
+- 새 Boat 조작이 시작된 뒤의 자동 복귀/스로틀 유지, 좌우 배치와 축 배율은 기존 설정을 따른다.
+  사용자 설정을 저장·덮어쓰지 않는다. Boat를 거치지 않는 기존 Rover·항공기의 입력 흐름은 유지한다.
+- C++의 Boat 가상 입력 진입점도 비활성 기체·초기 연결 중·통신 단절 상태를 거부한다.
+  네 축 중 하나라도 NaN/무한대 또는 정규화 범위 `[-1, 1]` 밖이면 전체 입력을 보내지 않는다.
+  기존 물리 조이스틱 우선순위와 MANUAL_CONTROL 축 매핑은 유지한다.
+
+새 `BoatVirtualJoystickTest`는 실제 VirtualJoystick·JoystickThumbPad와 QML 타이머를 사용한다.
+Boat/Rover/Multirotor/FixedWing/VTOL × 좌우 배치 × 자동 복귀의 20조합,
+단절/표시/활성/초기 연결/설정 변경, 기체 전환과 같은 객체 타입 변경, 취소된 터치의 release·resize를 검증한다.
+송신 대상은 기록용 QML endpoint이며 물리 선박 동작을 모사하지 않는다.
+`BoatNavigationTest`에는 MockLink로 실제 MANUAL_CONTROL 축 배율·기체 ID,
+잘못된 축·비활성 Boat·통신 단절 시 미송신과 복구 후 새 호출을 검증하는 항목을 추가했다.
+미송신 검증은 뒤따르는 PING 수신을 송신 큐 처리 완료의 근거로 사용한다.
+
+```bash
+ctest --test-dir build/boat-p3 --output-on-failure --parallel 2 \
+    -R '^(BoatVirtualJoystickTest|BoatNavigationTest)$'
+```
+
+검사 로그는 `build/boat-p3/boat-virtual-joystick-validation/`에 저장한다.
+Mac Debug 빌드와 최종 단일 CTest 실행의 215개가 통과했다. 전체 Unit 200개, Boat·MissionManager·
+기존 Joystick 테스트와 TopLevelViews/PlanView/링크 회귀를 포함한다.
+변경 QML 3개 qmllint와 생산 C++ Clang-Tidy는 기존 경고를 남기고 종료 코드 0이었다.
+변경 테스트 clang-format, 문서 markdownlint와 Q_ASSERT·고정 대기·테스트 메시지·CMake 검사를 통과했다.
+전체 pre-commit은 npm 도구 설치/캐시 오류로 완료하지 못했으며 기존 전체 lint 제한은 남아 있다.
+이는 가상 입력의 대상·세션 보호다. 정규화 축 0이 실제 추진 중립/정지를 보장하거나,
+음수 thrust가 실제 역추진을 지원한다고 판단하지 않는다. 입력 송신 중단 후 PX4의 동작과
+물리 조이스틱·제어권·중립·역추진은 실제 펌웨어·선박/SITL에서 별도로 인수해야 한다.
+
 ## 4. 실행과 수동 확인
 
 P4 로컬 검증은 기존 `build/boat-p3` 빌드 디렉터리를 재사용했다.
