@@ -69,6 +69,8 @@ See the [P3 testing record](docs/development/boat/P3_TESTING.md) for basic missi
 round trips, altitude UI, and imported command handling.
 See the [P4 testing record](docs/development/boat/P4_TESTING.md) for icons, instruments, settings migration,
 status wording, shared checklist transitions, connection recovery, and remaining P4 work.
+For the existing Jeongok Port vessel simulation, use the [Ubuntu PX4/Gazebo testing guide](docs/development/boat/UBUNTU_SITL_TESTING.md)
+and copy the [SITL report template](docs/development/boat/SITL_TEST_REPORT_TEMPLATE.md) to record actual results.
 
 ## badaMux product communication specification
 
