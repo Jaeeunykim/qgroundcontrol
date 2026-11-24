@@ -21,4 +21,7 @@ private slots:
     void _gpsCourseValidity_data();
     void _gpsCourseValidity();
     void _gpsCourseWithoutVehicle();
+    void _quaternionValidity_data();
+    void _quaternionValidity();
+    void _attitudeWithoutVehicle();
 };

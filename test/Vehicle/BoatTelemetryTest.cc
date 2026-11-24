@@ -1,6 +1,7 @@
 #include "BoatTelemetryTest.h"
 
 #include <QtCore/QRegularExpression>
+#include <QtGui/QQuaternion>
 #include <limits>
 
 #include "AppSettings.h"
@@ -326,4 +327,108 @@ void BoatTelemetryTest::_gpsCourseWithoutVehicle()
     mavlink_msg_gps_raw_int_encode(1, MAV_COMP_ID_AUTOPILOT1, &message, &gps);
     group.handleMessage(nullptr, message);
     QCOMPARE(group.courseOverGround()->rawValue().toDouble(), 360.0);
+}
+
+void BoatTelemetryTest::_quaternionValidity_data()
+{
+    QTest::addColumn<int>("type");
+    QTest::addColumn<QQuaternion>("rotation");
+    QTest::addColumn<QQuaternion>("offset");
+    QTest::addColumn<double>("expected");
+
+    struct Sample
+    {
+        const char* name;
+        QQuaternion rotation;
+        QQuaternion offset;
+        double boat;
+        double legacy;
+    };
+
+    const QQuaternion noOffset(0, 0, 0, 0);
+    const QQuaternion identity(1, 0, 0, 0);
+    const QList<Sample> samples{
+        {"zero", noOffset, noOffset, qQNaN(), 0},
+        {"identity", identity, noOffset, 0, 0},
+        {"yaw90", QQuaternion(qSqrt(0.5f), 0, 0, qSqrt(0.5f)), noOffset, 90, 90},
+        {"scaled-identity", QQuaternion(2, 0, 0, 0), noOffset, 0, 0},
+        {"small-yaw90", QQuaternion(1e-15f, 0, 0, 1e-15f), noOffset, 90, 90},
+        {"nan", QQuaternion(qQNaN(), 0, 0, 0), noOffset, qQNaN(), qQNaN()},
+        {"infinity", QQuaternion(std::numeric_limits<float>::infinity(), 0, 0, 0), noOffset, qQNaN(), qQNaN()},
+        {"norm-overflow", QQuaternion(std::numeric_limits<float>::max(), 0, 0, 0), noOffset, qQNaN(), 0},
+        {"norm-underflow", QQuaternion(std::numeric_limits<float>::min(), 0, 0, 0), noOffset, qQNaN(), 0},
+        {"nan-offset", identity, QQuaternion(qQNaN(), 0, 0, 0), qQNaN(), 0}};
+    for (int type : {int(MAV_TYPE_SURFACE_BOAT), int(MAV_TYPE_GROUND_ROVER), int(MAV_TYPE_QUADROTOR),
+                     int(MAV_TYPE_FIXED_WING), int(MAV_TYPE_VTOL_TILTROTOR)}) {
+        for (const auto& sample : samples) {
+            const auto name = QStringLiteral("type%1-%2").arg(type).arg(sample.name).toLatin1();
+            QTest::newRow(name.constData()) << type << sample.rotation << sample.offset
+                                            << (type == MAV_TYPE_SURFACE_BOAT ? sample.boat : sample.legacy);
+        }
+    }
+}
+
+void BoatTelemetryTest::_quaternionValidity()
+{
+    QFETCH(int, type);
+    QFETCH(QQuaternion, rotation);
+    QFETCH(QQuaternion, offset);
+    QFETCH(double, expected);
+    Vehicle vehicle(MAV_AUTOPILOT_PX4, static_cast<MAV_TYPE>(type));
+    auto* course = vehicle.gpsFactGroup()->getFact(QStringLiteral("courseOverGround"));
+    QVERIFY(course);
+    course->setRawValue(270.0);
+    mavlink_attitude_quaternion_t attitude{};
+    attitude.q1 = rotation.scalar();
+    attitude.q2 = rotation.x();
+    attitude.q3 = rotation.y();
+    attitude.q4 = rotation.z();
+    attitude.repr_offset_q[0] = offset.scalar();
+    attitude.repr_offset_q[1] = offset.x();
+    attitude.repr_offset_q[2] = offset.y();
+    attitude.repr_offset_q[3] = offset.z();
+    attitude.rollspeed = 0.1f;
+    attitude.pitchspeed = 0.2f;
+    attitude.yawspeed = 0.3f;
+    mavlink_message_t message{};
+    vehicle.heading()->setRawValue(180.0);
+    mavlink_msg_attitude_quaternion_encode(vehicle.id(), vehicle.compId(), &message, &attitude);
+    vehicle.VehicleFactGroup::handleMessage(&vehicle, message);
+    if (qIsNaN(expected)) {
+        QVERIFY(qIsNaN(vehicle.heading()->rawValue().toDouble()));
+        if (type == MAV_TYPE_SURFACE_BOAT) {
+            for (Fact* fact :
+                 {vehicle.roll(), vehicle.pitch(), vehicle.rollRate(), vehicle.pitchRate(), vehicle.yawRate()}) {
+                QVERIFY(qIsNaN(fact->rawValue().toDouble()));
+            }
+        }
+    } else {
+        QVERIFY(qAbs(vehicle.heading()->rawValue().toDouble() - expected) <= 1.0);
+    }
+    QCOMPARE(course->rawValue().toDouble(), 270.0);
+
+    // A subsequent valid north sample must recover from every invalid representation.
+    attitude.q1 = 1;
+    attitude.q2 = attitude.q3 = attitude.q4 = 0;
+    for (float& value : attitude.repr_offset_q) {
+        value = 0;
+    }
+    mavlink_msg_attitude_quaternion_encode(vehicle.id(), vehicle.compId(), &message, &attitude);
+    vehicle.VehicleFactGroup::handleMessage(&vehicle, message);
+    QCOMPARE(vehicle.heading()->rawValue().toDouble(), 0.0);
+    QVERIFY(qIsFinite(vehicle.yawRate()->rawValue().toDouble()));
+}
+
+void BoatTelemetryTest::_attitudeWithoutVehicle()
+{
+    VehicleFactGroup group;
+    mavlink_message_t message{};
+    mavlink_attitude_t euler{};
+    mavlink_msg_attitude_encode(1, MAV_COMP_ID_AUTOPILOT1, &message, &euler);
+    group.handleMessage(nullptr, message);
+    mavlink_attitude_quaternion_t quaternion{};
+    quaternion.q1 = 1;
+    mavlink_msg_attitude_quaternion_encode(1, MAV_COMP_ID_AUTOPILOT1, &message, &quaternion);
+    group.handleMessage(nullptr, message);
+    QVERIFY(!group.telemetryAvailable());
 }

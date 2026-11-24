@@ -133,7 +133,7 @@ void VehicleFactGroup::_resetAttitudeSource()
 
 void VehicleFactGroup::_handleAttitude(Vehicle *vehicle, const mavlink_message_t &message)
 {
-    if ((message.sysid != vehicle->id()) || (message.compid != vehicle->compId())) {
+    if (vehicle == nullptr || (message.sysid != vehicle->id()) || (message.compid != vehicle->compId())) {
         return;
     }
 
@@ -165,7 +165,7 @@ void VehicleFactGroup::_handleAltitude(const mavlink_message_t &message)
 void VehicleFactGroup::_handleAttitudeQuaternion(Vehicle *vehicle, const mavlink_message_t &message)
 {
     // only accept the attitude message from the vehicle's flight controller
-    if ((message.sysid != vehicle->id()) || (message.compid != vehicle->compId())) {
+    if (vehicle == nullptr || (message.sysid != vehicle->id()) || (message.compid != vehicle->compId())) {
         return;
     }
 
@@ -182,6 +182,22 @@ void VehicleFactGroup::_handleAttitudeQuaternion(Vehicle *vehicle, const mavlink
     if (repr_offset.length() >= 0.5f) {
         quat *= repr_offset;
         rates = repr_offset * rates;
+    }
+
+    if (vehicle->boat()) {
+        const auto finiteRotation = [](const QQuaternion& rotation) {
+            return qIsFinite(rotation.scalar()) && qIsFinite(rotation.x()) && qIsFinite(rotation.y())
+                && qIsFinite(rotation.z());
+        };
+        const float lengthSquared = quat.lengthSquared();
+        if (!finiteRotation(quat) || !finiteRotation(repr_offset) || !qIsFinite(lengthSquared) || lengthSquared <= 0.0F) {
+            // atan2(0, 0) would turn a missing quaternion into a plausible north heading.
+            for (Fact* fact : {roll(), pitch(), heading(), rollRate(), pitchRate(), yawRate()}) {
+                fact->setRawValue(qQNaN());
+            }
+            _setTelemetryAvailable(true);
+            return;
+        }
     }
 
     float attRoll, attPitch, attYaw;

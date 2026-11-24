@@ -376,6 +376,13 @@ Heading·GPS 간 독립성과 기존 Rover·항공기 처리, Vehicle 문맥이 
 Ubuntu 실행 결과는 아직 없으며 템플릿은 전 항목 미실행이다. Mac의 자동 회귀 결과를 SITL 인수로 옮기지 않는다.
 이 문서 준비를 T14/T15 완료, 공식 PR 제출 또는 upstream 승인으로 표시하지 않는다.
 
+### P4 무효 자세 quaternion 보완 — 2026-11-24
+
+`feat/boat-attitude-validity`에서 Boat의 zero/비유한 quaternion과 사용할 수 없는 norm을 NaN으로 처리해
+잘못된 입력이 Heading 0도로 표시되는 경로를 막았다. 유효한 무회전 0도·정상 샘플 복구·COG 독립성과
+기존 Rover·항공기 변환, Vehicle 부재 방어를 검증한다.
+상세 행렬·규격 근거와 남은 범위는 [P4 테스트 기록](P4_TESTING.md)의 자세 quaternion 절을 따른다.
+
 ### 실행 방법과 증거
 
 실제 구현 시 [테스트 가이드](../../../test/README.md)와 [CI 가이드](../../../.github/ci-overview.md)를 따른다.

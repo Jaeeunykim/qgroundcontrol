@@ -206,6 +206,30 @@ Mac Debug 빌드와 전체 Unit 200개를 포함한 최종 회귀 215개가 통�
 변경 테스트 clang-format·문서 markdownlint·Q_ASSERT·null·고정 대기·테스트 메시지 검사를 통과했다.
 앞 절에 기록한 전체 pre-commit/CI 제한과 실제 Ubuntu/SITL·선박 인수 대기는 계속 남아 있다.
 
+### 추가 보완: Boat 자세 quaternion의 무효 값 — 2026-11-24
+
+작업 브랜치는 `feat/boat-attitude-validity`이며 SITL 문서 커밋 `d640ebd53`에서 분기했다.
+
+- Boat의 ATTITUDE_QUATERNION에서 모두 0인 quaternion이 `atan2(0,0)`을 거쳐 북쪽 0도로 표시되지 않게 한다.
+  유효한 무회전 표현 `(1,0,0,0)`은 실제 Heading 0도로 유지한다.
+- 회전 quaternion/representation offset의 비유한 성분과, 변환할 quaternion norm의 0·underflow·overflow를
+  사용할 수 없는 자세 입력으로 처리한다. 해당 메시지의 roll/pitch/Heading과 각속도 Fact를 NaN으로 전환한다.
+- 다음 정상 quaternion은 자세 값과 각속도를 복구하며 GPS COG를 변경하지 않는다.
+  유효한 입력의 기존 회전 변환·offset 적용 조건·quaternion 우선순위를 유지한다.
+- 기존 Rover·항공기의 변환 경로는 유지한다. 공통 Euler/quaternion 처리에는 Vehicle 부재 방어를 추가했다.
+
+이는 구조적으로 사용할 수 없는 quaternion 처리다. 유한 norm만으로 센서 정확도·항해 방향·원천 생존성을 보증하지 않는다.
+규격의 quaternion 순서와 무회전 표현은
+[MAVLink ATTITUDE_QUATERNION](https://mavlink.io/en/messages/common.html#ATTITUDE_QUATERNION)을 따른다.
+`BoatTelemetryTest`에 기체 5종 × 입력 10종의 50행, 이전 값 제거·정상 0도 복구·COG 독립성과
+Vehicle 부재 시 Euler/quaternion 무시 검증을 추가했다.
+검사 로그는 `build/boat-p3/boat-attitude-validity-validation/`에 저장한다.
+Mac Debug 빌드, 50행을 추가한 BoatTelemetryTest와 연결 복구 회귀,
+최종 단일 CTest 실행의 전체 Unit 200개 포함 215개가 통과했다.
+생산 C++ Clang-Tidy는 기존 경고를 남기고 종료 코드 0이며 새 null 가드의 implicit-bool 경고는 수정했다.
+변경 테스트 clang-format·문서 markdownlint·Q_ASSERT·null·고정 대기·테스트 메시지 검사를 통과했다.
+전체 lint/CI와 실제 Ubuntu/SITL·실선 검증의 미완료 상태는 유지한다.
+
 ## 4. 실행과 수동 확인
 
 P4 로컬 검증은 기존 `build/boat-p3` 빌드 디렉터리를 재사용했다.
