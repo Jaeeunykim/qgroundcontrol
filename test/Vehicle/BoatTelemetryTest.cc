@@ -8,6 +8,7 @@
 #include "SettingsManager.h"
 #include "UnitsSettings.h"
 #include "Vehicle.h"
+#include "VehicleGPSFactGroup.h"
 
 UT_REGISTER_TEST(BoatTelemetryTest, TestLabel::Unit, TestLabel::Vehicle)
 
@@ -228,4 +229,101 @@ void BoatTelemetryTest::_headingAndCogAreIndependent()
     vehicle.VehicleFactGroup::handleMessage(&vehicle, message);
     QVERIFY(qIsNaN(vehicle.heading()->rawValue().toDouble()));
     QCOMPARE(cog->rawValue().toDouble(), 0.0);
+}
+
+void BoatTelemetryTest::_gpsCourseValidity_data()
+{
+    QTest::addColumn<int>("type");
+    QTest::addColumn<bool>("secondary");
+    QTest::addColumn<int>("fix");
+    QTest::addColumn<int>("course");
+    QTest::addColumn<double>("expected");
+
+    struct Sample
+    {
+        const char* name;
+        int fix;
+        int course;
+        double boat;
+        double legacy;
+    };
+
+    const QList<Sample> samples{{"no-gps", 0, 0, qQNaN(), 0},
+                                {"no-fix", 1, 9000, qQNaN(), 90},
+                                {"2d-north", 2, 0, 0, 0},
+                                {"3d-last-angle", 3, 35999, 359.99, 359.99},
+                                {"rtk", 6, 27000, 270, 270},
+                                {"ppp-north", 8, 0, 0, 0},
+                                {"unknown-fix", 9, 0, qQNaN(), 0},
+                                {"invalid-fix", 255, 9000, qQNaN(), 90},
+                                {"360-degrees", 3, 36000, qQNaN(), 360},
+                                {"out-of-range", 3, 65534, qQNaN(), 655.34},
+                                {"sentinel", 3, UINT16_MAX, qQNaN(), qQNaN()},
+                                {"2d-sentinel", 2, UINT16_MAX, qQNaN(), qQNaN()},
+                                {"east", 3, 9000, 90, 90}};
+    for (int type : {int(MAV_TYPE_SURFACE_BOAT), int(MAV_TYPE_GROUND_ROVER), int(MAV_TYPE_QUADROTOR),
+                     int(MAV_TYPE_FIXED_WING), int(MAV_TYPE_VTOL_TILTROTOR)}) {
+        for (bool secondary : {false, true}) {
+            for (const auto& sample : samples) {
+                const auto name =
+                    QStringLiteral("type%1-gps%2-%3").arg(type).arg(secondary ? 2 : 1).arg(sample.name).toLatin1();
+                QTest::newRow(name.constData()) << type << secondary << sample.fix << sample.course
+                                                << (type == MAV_TYPE_SURFACE_BOAT ? sample.boat : sample.legacy);
+            }
+        }
+    }
+}
+
+void BoatTelemetryTest::_gpsCourseValidity()
+{
+    QFETCH(int, type);
+    QFETCH(bool, secondary);
+    QFETCH(int, fix);
+    QFETCH(int, course);
+    QFETCH(double, expected);
+    Vehicle vehicle(MAV_AUTOPILOT_PX4, static_cast<MAV_TYPE>(type));
+    auto* group = secondary ? vehicle.gps2FactGroup() : vehicle.gpsFactGroup();
+    auto* other = secondary ? vehicle.gpsFactGroup() : vehicle.gps2FactGroup();
+    QVERIFY(group && other);
+    auto* cog = group->getFact(QStringLiteral("courseOverGround"));
+    QVERIFY(cog);
+    vehicle.heading()->setRawValue(180.0);
+    const auto receive = [&](int fixType, int rawCourse) {
+        mavlink_message_t message{};
+        if (secondary) {
+            mavlink_gps2_raw_t gps{};
+            gps.fix_type = fixType;
+            gps.cog = rawCourse;
+            mavlink_msg_gps2_raw_encode(vehicle.id(), vehicle.compId(), &message, &gps);
+        } else {
+            mavlink_gps_raw_int_t gps{};
+            gps.fix_type = fixType;
+            gps.cog = rawCourse;
+            mavlink_msg_gps_raw_int_encode(vehicle.id(), vehicle.compId(), &message, &gps);
+        }
+        group->handleMessage(&vehicle, message);
+    };
+    receive(3, 9000);
+    QCOMPARE(cog->rawValue().toDouble(), 90.0);
+    receive(fix, course);
+    if (qIsNaN(expected)) {
+        QVERIFY(qIsNaN(cog->rawValue().toDouble()));
+    } else {
+        QCOMPARE(cog->rawValue().toDouble(), expected);
+    }
+    QCOMPARE(vehicle.heading()->rawValue().toDouble(), 180.0);
+    QVERIFY(qIsNaN(other->getFact(QStringLiteral("courseOverGround"))->rawValue().toDouble()));
+    receive(3, 0);
+    QCOMPARE(cog->rawValue().toDouble(), 0.0);
+}
+
+void BoatTelemetryTest::_gpsCourseWithoutVehicle()
+{
+    VehicleGPSFactGroup group;
+    mavlink_gps_raw_int_t gps{};
+    gps.cog = 36000;
+    mavlink_message_t message{};
+    mavlink_msg_gps_raw_int_encode(1, MAV_COMP_ID_AUTOPILOT1, &message, &gps);
+    group.handleMessage(nullptr, message);
+    QCOMPARE(group.courseOverGround()->rawValue().toDouble(), 360.0);
 }

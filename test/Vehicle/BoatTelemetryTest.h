@@ -18,4 +18,7 @@ private slots:
     void _estimateFollowsDistanceChanges();
     void _headingAndTypeTransitions();
     void _headingAndCogAreIndependent();
+    void _gpsCourseValidity_data();
+    void _gpsCourseValidity();
+    void _gpsCourseWithoutVehicle();
 };

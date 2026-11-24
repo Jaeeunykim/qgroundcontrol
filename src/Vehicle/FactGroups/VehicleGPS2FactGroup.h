@@ -17,5 +17,5 @@ public:
     void handleMessage(Vehicle *vehicle, const mavlink_message_t &message) final;
 
 private:
-    void _handleGps2Raw(const mavlink_message_t &message);
+    void _handleGps2Raw(const mavlink_message_t &message, const Vehicle* vehicle = nullptr);
 };

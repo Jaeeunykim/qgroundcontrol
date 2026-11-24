@@ -45,11 +45,9 @@ VehicleGPSFactGroup::VehicleGPSFactGroup(QObject *parent)
 
 void VehicleGPSFactGroup::handleMessage(Vehicle *vehicle, const mavlink_message_t &message)
 {
-    Q_UNUSED(vehicle);
-
     switch (message.msgid) {
     case MAVLINK_MSG_ID_GPS_RAW_INT:
-        _handleGpsRawInt(message);
+        _handleGpsRawInt(message, vehicle);
         break;
     case MAVLINK_MSG_ID_HIGH_LATENCY:
         _handleHighLatency(message);
@@ -65,7 +63,17 @@ void VehicleGPSFactGroup::handleMessage(Vehicle *vehicle, const mavlink_message_
     }
 }
 
-void VehicleGPSFactGroup::_handleGpsRawInt(const mavlink_message_t &message)
+void VehicleGPSFactGroup::_setCourseOverGround(uint16_t course, uint8_t fixType, const Vehicle* vehicle)
+{
+    bool valid = course != UINT16_MAX;
+    if (vehicle != nullptr && vehicle->boat()) {
+        // Zero is a valid course; no fix, unknown fix and out-of-domain angles are not north.
+        valid = course < 36000 && fixType >= GPS_FIX_TYPE_2D_FIX && fixType <= GPS_FIX_TYPE_PPP;
+    }
+    courseOverGround()->setRawValue(valid ? course / 100.0 : qQNaN());
+}
+
+void VehicleGPSFactGroup::_handleGpsRawInt(const mavlink_message_t &message, const Vehicle* vehicle)
 {
     mavlink_gps_raw_int_t gpsRawInt{};
     mavlink_msg_gps_raw_int_decode(&message, &gpsRawInt);
@@ -76,7 +84,7 @@ void VehicleGPSFactGroup::_handleGpsRawInt(const mavlink_message_t &message)
     count()->setRawValue((gpsRawInt.satellites_visible == 255) ? 0 : gpsRawInt.satellites_visible);
     hdop()->setRawValue((gpsRawInt.eph == UINT16_MAX) ? qQNaN() : (gpsRawInt.eph / 100.0));
     vdop()->setRawValue((gpsRawInt.epv == UINT16_MAX) ? qQNaN() : (gpsRawInt.epv / 100.0));
-    courseOverGround()->setRawValue((gpsRawInt.cog == UINT16_MAX) ? qQNaN() : (gpsRawInt.cog / 100.0));
+    _setCourseOverGround(gpsRawInt.cog, gpsRawInt.fix_type, vehicle);
     yaw()->setRawValue((gpsRawInt.yaw == UINT16_MAX) ? qQNaN() : (gpsRawInt.yaw / 100.0));
     lock()->setRawValue(gpsRawInt.fix_type);
 

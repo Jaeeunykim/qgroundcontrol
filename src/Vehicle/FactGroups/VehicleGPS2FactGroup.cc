@@ -7,11 +7,9 @@
 
 void VehicleGPS2FactGroup::handleMessage(Vehicle *vehicle, const mavlink_message_t &message)
 {
-    Q_UNUSED(vehicle);
-
     switch (message.msgid) {
     case MAVLINK_MSG_ID_GPS2_RAW:
-        _handleGps2Raw(message);
+        _handleGps2Raw(message, vehicle);
         break;
     case MAVLINK_MSG_ID_GNSS_INTEGRITY:
         _handleGnssIntegrity(message);
@@ -21,7 +19,7 @@ void VehicleGPS2FactGroup::handleMessage(Vehicle *vehicle, const mavlink_message
     }
 }
 
-void VehicleGPS2FactGroup::_handleGps2Raw(const mavlink_message_t &message)
+void VehicleGPS2FactGroup::_handleGps2Raw(const mavlink_message_t &message, const Vehicle* vehicle)
 {
     mavlink_gps2_raw_t gps2Raw{};
     mavlink_msg_gps2_raw_decode(&message, &gps2Raw);
@@ -32,7 +30,7 @@ void VehicleGPS2FactGroup::_handleGps2Raw(const mavlink_message_t &message)
     count()->setRawValue((gps2Raw.satellites_visible == 255) ? 0 : gps2Raw.satellites_visible);
     hdop()->setRawValue((gps2Raw.eph == UINT16_MAX) ? qQNaN() : (gps2Raw.eph / 100.0));
     vdop()->setRawValue((gps2Raw.epv == UINT16_MAX) ? qQNaN() : (gps2Raw.epv / 100.0));
-    courseOverGround()->setRawValue((gps2Raw.cog == UINT16_MAX) ? qQNaN() : (gps2Raw.cog / 100.0));
+    _setCourseOverGround(gps2Raw.cog, gps2Raw.fix_type, vehicle);
     yaw()->setRawValue((gps2Raw.yaw == UINT16_MAX) ? qQNaN() : (gps2Raw.yaw / 100.0));
     lock()->setRawValue(gps2Raw.fix_type);
 

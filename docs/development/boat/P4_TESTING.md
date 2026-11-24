@@ -178,6 +178,34 @@ Mac Debug 빌드와 최종 단일 CTest 실행의 215개가 통과했다. 전체
 음수 thrust가 실제 역추진을 지원한다고 판단하지 않는다. 입력 송신 중단 후 PX4의 동작과
 물리 조이스틱·제어권·중립·역추진은 실제 펌웨어·선박/SITL에서 별도로 인수해야 한다.
 
+### 추가 보완: GPS COG 입력 유효성 — 2026-11-24
+
+작업 브랜치는 `feat/boat-gps-validity`이며 가상 입력 보완 `4c15c32f2`에서 분기했다.
+
+- Boat의 GPS_RAW_INT와 GPS2_RAW COG에 동일한 검증을 적용한다.
+  알려진 GPS fix `2D(2)`~`PPP(8)`와 COG `0`~`35999` cdeg를 함께 만족해야 수치로 표시한다.
+  유효한 0은 북쪽 0도로 보존한다.
+- GPS 없음/위치 fix 없음(0/1), 알 수 없는 fix 값, COG sentinel `65535`와 범위 밖 각도는 NaN으로 전환한다.
+  이전 유효 값이 있어도 유지하지 않으며, 다음 정상 샘플로 복구한다.
+- Heading은 변경하지 않으며 GPS와 보조 GPS도 서로 덮어쓰지 않는다. GPS2를 기본 COG로 자동 대체하지 않는다.
+  2D fix의 유효 COG가 있어도 Vehicle의 기존 3D GPS 위치 fallback 조건을 완화하지 않는다.
+- 기존 Rover·Multirotor·FixedWing·VTOL의 COG 처리와 Vehicle 문맥이 없는 FactGroup 사용은 유지한다.
+
+이는 COG 값·fix enum의 표시 유효성이다. 정지/저속에서 COG가 얼마나 정확한지, 원천 수신 주기·만료,
+좌표/속도/Heading의 품질과 동일한 판단으로 확장하지 않는다. 신규 GPS fix enum이 도입되면 표시 정책을 다시 검토한다.
+규격 근거는 고정 XML `c409cf690454db6d3e004bd14173bc6c7ff1e0ff`와
+[MAVLink GPS_RAW_INT](https://mavlink.io/en/messages/common.html#GPS_RAW_INT),
+[GPS2_RAW](https://mavlink.io/en/messages/common.html#GPS2_RAW),
+[GPS_FIX_TYPE](https://mavlink.io/en/messages/common.html#GPS_FIX_TYPE)다.
+
+`BoatTelemetryTest`에 기체 5종 × GPS 2종 × 명시적 입력/기대 값 13종의 130행과
+Vehicle 문맥 없음, 이전 값 무효화·0도 복구·Heading/보조 GPS 독립성 검증을 추가했다.
+검사 로그는 `build/boat-p3/boat-gps-validity-validation/`에 저장한다.
+Mac Debug 빌드와 전체 Unit 200개를 포함한 최종 회귀 215개가 통과했다.
+생산 C++ 2개 Clang-Tidy는 기존 경고를 남기고 종료 코드 0이며, 새 코드의 implicit-bool 경고는 수정했다.
+변경 테스트 clang-format·문서 markdownlint·Q_ASSERT·null·고정 대기·테스트 메시지 검사를 통과했다.
+앞 절에 기록한 전체 pre-commit/CI 제한과 실제 Ubuntu/SITL·선박 인수 대기는 계속 남아 있다.
+
 ## 4. 실행과 수동 확인
 
 P4 로컬 검증은 기존 `build/boat-p3` 빌드 디렉터리를 재사용했다.

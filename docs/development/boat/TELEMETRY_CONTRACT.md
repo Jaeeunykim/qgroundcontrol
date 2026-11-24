@@ -134,6 +134,10 @@ QGC에는 [VehicleEFIFactGroup](../../../src/Vehicle/FactGroups/VehicleEFIFactGr
 사용하지 않는다. 이는 D04의 개별 stream 만료 시간 또는 D05의 원천 센서 생존성을 확정한 것이 아니다.
 상세 범위는 [P4 테스트 기록](P4_TESTING.md)의 연결 복구 절에 기록한다.
 
+COG 표시 보완: Boat의 GPS_RAW_INT/GPS2_RAW는 알려진 fix 2~8과 `0`~`35999` cdeg를 함께 요구한다.
+GPS 없음/no fix/알 수 없는 fix, sentinel·범위 밖 COG는 NaN이며 정상 샘플로 복구한다.
+유효한 0도는 보존한다. 이 조건은 저속 COG 정확도·Heading 유효성·위치 fallback·원천 만료의 합의를 대체하지 않는다.
+
 ## 6. PX4와 먼저 결정할 항목
 
 각 행은 PX4 담당·QGC 담당·통합 담당이 확인할 합의 항목이다. 이름/수치를 임의 기본값으로 확정하지 않는다.

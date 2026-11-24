@@ -51,7 +51,8 @@ signals:
     void gnssIntegrityReceived();
 
 protected:
-    void _handleGpsRawInt(const mavlink_message_t &message);
+    void _handleGpsRawInt(const mavlink_message_t &message, const Vehicle* vehicle = nullptr);
+    void _setCourseOverGround(uint16_t course, uint8_t fixType, const Vehicle* vehicle);
     void _handleHighLatency(const mavlink_message_t &message);
     void _handleHighLatency2(const mavlink_message_t &message);
     void _handleGnssIntegrity(const mavlink_message_t& message);

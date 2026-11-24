@@ -51,6 +51,7 @@ Boat support must remain independent of the vessel's onboard equipment, includin
 - [x] Implement Boat map icons, default instruments, layout preservation, and armed-state wording (P4 basic presentation).
 - [x] Clear Boat instruments on total communication loss and require new samples after reconnection (P4 connection recovery).
 - [x] Cancel Boat virtual-joystick inputs across target/link/UI changes and require fresh interaction before resuming (P4 virtual input).
+- [x] Validate Boat GPS/GPS2 course against fix state, angle domain, and sentinel values while preserving valid zero (P4 COG validity).
 - [ ] Complete source freshness/expiry, remaining telemetry validity, physical manual-control, vessel-specific checklist, and platform acceptance work (P4).
 - [ ] Verify missing/stale telemetry, disconnect/reconnect, and Rover/aircraft compatibility.
 - [ ] Prepare focused upstream PRs with tests, UI evidence, and documented limitations.
