@@ -86,6 +86,8 @@ protected:
     void _handleRawImuTemp(const mavlink_message_t &message);
     void _handleNavControllerOutput(const mavlink_message_t &message);
     void _handleRangefinder(const mavlink_message_t &message);
+    void _updateBoatTimeToHome();
+    void _resetAttitudeSource();
 
     Fact _rollFact = Fact(0, QStringLiteral("roll"), FactMetaData::valueTypeDouble);
     Fact _pitchFact = Fact(0, QStringLiteral("pitch"), FactMetaData::valueTypeDouble);

@@ -15,6 +15,7 @@ private slots:
     void _timeToHomeUnits_data();
     void _timeToHomeUnits();
     void _invalidEstimateClearsPreviousValue();
+    void _estimateFollowsDistanceChanges();
     void _headingAndTypeTransitions();
     void _headingAndCogAreIndependent();
 };

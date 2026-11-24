@@ -150,6 +150,23 @@ void BoatTelemetryTest::_invalidEstimateClearsPreviousValue()
     QCOMPARE(vehicle.timeToHome()->rawValue().toDouble(), 25.0);
 }
 
+void BoatTelemetryTest::_estimateFollowsDistanceChanges()
+{
+    Vehicle vehicle(MAV_AUTOPILOT_PX4, MAV_TYPE_SURFACE_BOAT);
+    sendSpeed(vehicle, 2.0f);
+    QVERIFY(qIsNaN(vehicle.timeToHome()->rawValue().toDouble()));
+    vehicle.distanceToHome()->setRawValue(100.0);
+    QCOMPARE(vehicle.timeToHome()->rawValue().toDouble(), 50.0);
+    vehicle.distanceToHome()->setRawValue(40.0);
+    QCOMPARE(vehicle.timeToHome()->rawValue().toDouble(), 20.0);
+    vehicle.distanceToHome()->setRawValue(qQNaN());
+    QVERIFY(qIsNaN(vehicle.timeToHome()->rawValue().toDouble()));
+    vehicle.distanceToHome()->setRawValue(0.0);
+    QCOMPARE(vehicle.timeToHome()->rawValue().toDouble(), 0.0);
+    sendSpeed(vehicle, 0.0f);
+    QVERIFY(qIsNaN(vehicle.timeToHome()->rawValue().toDouble()));
+}
+
 void BoatTelemetryTest::_headingAndTypeTransitions()
 {
     auto* type = SettingsManager::instance()->appSettings()->offlineEditingVehicleClass();

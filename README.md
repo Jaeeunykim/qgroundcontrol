@@ -36,7 +36,9 @@ automated regression coverage; validation against the target PX4 firmware and ve
 P3 basic mission planning, ground-speed editing, and altitude UI adaptations are implemented on
 **`feat/boat-mission-planning`**, with local automated coverage. P4 basic presentation and layout
 preservation, distinct Heading/GPS COG, and initial/invalid telemetry handling are implemented on
-**`feat/boat-ui`**; source freshness policies, remaining operational UI, and P5 remain pending.
+**`feat/boat-ui`**. Boat telemetry invalidation on total communication loss and per-stream recovery
+are implemented on **`feat/boat-link-recovery`**; source freshness policies, remaining operational UI,
+and P5 remain pending.
 These changes have not been accepted upstream.
 The first integration target is **PX4/Pixhawk ↔ MAVLink ↔ QGC**.
 Boat support must remain independent of the vessel's onboard equipment, including badaMux.
@@ -47,6 +49,7 @@ Boat support must remain independent of the vessel's onboard equipment, includin
 - [ ] Accept P1/P2/P3 on the target PX4 firmware and vessel; complete outstanding manual checks and lint requirements.
 - [x] Implement basic Boat mission editors, ground-speed round trips, altitude UI adaptations, and aircraft-command upload guards (P3).
 - [x] Implement Boat map icons, default instruments, layout preservation, and armed-state wording (P4 basic presentation).
+- [x] Clear Boat instruments on total communication loss and require new samples after reconnection (P4 connection recovery).
 - [ ] Complete source freshness/expiry, remaining telemetry validity, physical manual-control, vessel-specific checklist, and platform acceptance work (P4).
 - [ ] Verify missing/stale telemetry, disconnect/reconnect, and Rover/aircraft compatibility.
 - [ ] Prepare focused upstream PRs with tests, UI evidence, and documented limitations.
@@ -63,7 +66,7 @@ regression coverage, and the separate P2 build/run commands.
 See the [P3 testing record](docs/development/boat/P3_TESTING.md) for basic mission planning, speed
 round trips, altitude UI, and imported command handling.
 See the [P4 testing record](docs/development/boat/P4_TESTING.md) for icons, instruments, settings migration,
-status wording, shared checklist transitions, and remaining P4 work.
+status wording, shared checklist transitions, connection recovery, and remaining P4 work.
 
 ## badaMux product communication specification
 

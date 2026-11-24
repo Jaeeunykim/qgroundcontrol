@@ -126,6 +126,11 @@ void VehicleFactGroup::_handleAttitudeWorker(double rollRadians, double pitchRad
     heading()->setRawValue(yawDegrees);
 }
 
+void VehicleFactGroup::_resetAttitudeSource()
+{
+    _receivingAttitudeQuaternion = false;
+}
+
 void VehicleFactGroup::_handleAttitude(Vehicle *vehicle, const mavlink_message_t &message)
 {
     if ((message.sysid != vehicle->id()) || (message.compid != vehicle->compId())) {
@@ -222,15 +227,21 @@ void VehicleFactGroup::_handleVfrHud(const mavlink_message_t& message, const Veh
     }
     altitudeTuning()->setRawValue(vfrHud.alt - _altitudeTuningOffset);
     if (boat) {
-        const double distance = distanceToHome()->rawValue().toDouble();
-        // Use raw metres and m/s; display units must not change the estimate.
-        timeToHome()->setRawValue(validBoatSpeed && speed > 0 && qIsFinite(distance) && distance >= 0 ? distance / speed
-                                                                                                      : qQNaN());
+        _updateBoatTimeToHome();
     } else if (!qIsNaN(vfrHud.groundspeed) && !qIsNaN(_distanceToHomeFact.cookedValue().toDouble())) {
         timeToHome()->setRawValue(_distanceToHomeFact.cookedValue().toDouble() / vfrHud.groundspeed);
     }
 
     _setTelemetryAvailable(true);
+}
+
+void VehicleFactGroup::_updateBoatTimeToHome()
+{
+    // Use raw metres and m/s; display units must not change the estimate.
+    const double distance = distanceToHome()->rawValue().toDouble();
+    const double speed = groundSpeed()->rawValue().toDouble();
+    timeToHome()->setRawValue(qIsFinite(speed) && speed > 0 && qIsFinite(distance) && distance >= 0 ? distance / speed
+                                                                                             : qQNaN());
 }
 
 void VehicleFactGroup::_handleRawImuTemp(const mavlink_message_t &message)

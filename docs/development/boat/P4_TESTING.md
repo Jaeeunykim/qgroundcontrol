@@ -99,6 +99,46 @@ Boat:  새 키로 편집·저장·복원
 - 연결 기체가 없어도 체크리스트 상태를 null 기체에 쓰지 않는다.
 - 같은 기체의 화면을 다시 여는 기존 흐름과 다른 기체의 모델 선택은 유지한다.
 
+### 추가 보완: 통신 단절 후 데이터 복구 — 2026-11-24
+
+작업 브랜치는 `feat/boat-link-recovery`이며 기본 표시 커밋 `4c7ee8c00`에서 분기했다.
+
+- 기존 `VehicleLinkManager.communicationLost`가 전체 통신 단절을 판정하면 Boat의 대지속도,
+  Heading, GPS/보조 GPS COG, 다음 WP 거리, Home 거리·방위와 복귀 예상시간을 미수신 NaN으로 전환한다.
+- 마지막 지도 좌표와 Home 위치, 저장된 계획·사용자 배치는 유지한다. 마지막 지도 좌표를 새 실시간 거리로 사용하지 않는다.
+- heartbeat 또는 Home 갱신만으로 이전 계기 값을 복원하지 않는다. 새 위치가 와야 Home 거리를 계산한다.
+  위치 값이 단절 전과 같아도 새로 받은 유효 샘플이면 복구한다.
+- 복구한 각 stream은 해당 필드만 갱신한다. Heading과 COG, 속도와 다음 WP 거리를 서로 대신하지 않는다.
+- Boat의 위치·자세 소스 우선순위 이력을 단절 시 해제한다. 다시 들어온 GLOBAL_POSITION_INT를 우선하며,
+  아직 해당 stream이 없으면 유효한 3D GPS 위치를 재사용할 수 있다. quaternion을 받았던 이전 연결 때문에
+  새 ATTITUDE stream이 무시되지 않게 한다. 기존 Rover·항공기의 소스 선택은 유지한다.
+- Home 거리 또는 대지속도 변경 시 복귀 예상시간을 함께 다시 계산한다. 어느 쪽이 먼저 도착해도 복구하고,
+  거리 무효 또는 속도 0이면 이전 예상시간을 지운다.
+
+이는 전체 연결 단절·복구 처리다. 일부 센서 stream만 멈추거나 PX4가 오래된 원천 값을 반복 송신하는 경우의
+만료를 검증하지 않는다. 항목별 timeout은 D04의 실제 발행 주기 확인 후 결정한다.
+고지연 링크·다중 링크의 단절 판정 기준도 기존 LinkManager를 따른다.
+
+`BoatLinkRecoveryTest`는 실제 MockLink 연결·전체 단절 판정과 Vehicle의 수신 경로를 사용한다.
+PX4/ArduPilot × Boat/Rover/Multirotor/FixedWing/VTOL 10조합에서 단절·heartbeat 복구,
+Boat의 값별 재수신·같은 위치·GPS fallback·quaternion→Euler 재학습·유효한 0을 검증한다.
+`BoatTelemetryTest`에는 새 속도 없이 거리만 바뀌는 경우의 예상시간 갱신·무효화 검증을 추가했다.
+
+```bash
+ctest --test-dir build/boat-p3 --output-on-failure --parallel 2 \
+    -R '^(BoatLinkRecoveryTest|BoatTelemetryTest|VehicleLinkManagerTest|BoatNavigationTest)$'
+```
+
+로컬 빌드·검사 로그는 `build/boat-p3/boat-link-recovery-validation/`에 저장한다.
+Mac Debug 빌드, `BoatLinkRecoveryTest` 10조합, 확장한 `BoatTelemetryTest`,
+전체 Unit 200개가 통과했다. 최종 단일 CTest 실행에서도 전체 Unit과 Boat·계획·QML·링크를 포함한
+213개가 모두 통과했다. 변경 생산 C++ 2개 Clang-Tidy는 기존 경고를 남기고 종료 코드 0이었다.
+변경 문서 markdownlint, 새 테스트 clang-format, Q_ASSERT·로그·고정 대기·테스트 메시지·번역·CMake 정책 검사를 통과했다.
+전체 pre-commit은 기존 npm `EALLOWGIT` 도구 설치 오류로 실행을 완료하지 못했다.
+Vehicle null 검사에는 기준 코드의 `getParameter()` 경고 2개가 남아 있다. 전체 lint/CI 통과로 표기하지 않는다.
+SITL 수동 인수에서는 전체 MAVLink 송신 중단→단절→heartbeat만 재개→각 stream 재개를 나누어 확인한다.
+재연결 자체를 새 센서 값 또는 명령 재실행의 근거로 사용하지 않는다.
+
 ## 4. 실행과 수동 확인
 
 P4 로컬 검증은 기존 `build/boat-p3` 빌드 디렉터리를 재사용했다.

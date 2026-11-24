@@ -847,6 +847,8 @@ private slots:
     void _firstRallyPointLoadComplete       ();
     void _clearCameraTriggerPoints          ();
     void _updateDistanceHeadingHome         ();
+    void _resetBoatTelemetry               ();
+    void _refreshBoatCoordinate            ();
     void _updateMissionItemIndex            ();
     void _updateHeadingToNextWP             ();
     void _updateDistanceHeadingGCS          ();
@@ -933,6 +935,7 @@ private:
     QGeoCoordinate  _coordinate;
     QGeoCoordinate  _homePosition;
     QGeoCoordinate  _armedPosition;
+    bool            _boatCoordinateAvailable = false;
 
     qreal           _initialGCSPressure = 0.;
     qreal           _initialGCSTemperature = 0.;

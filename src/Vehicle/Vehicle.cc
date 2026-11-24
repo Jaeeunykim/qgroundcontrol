@@ -382,17 +382,23 @@ void Vehicle::_commonInit(LinkInterface* link)
     _gimbalController = new GimbalController(this);
     _vehicleSupports = new VehicleSupports(this);
 
-    const auto resetBoatTelemetry = [this]() {
-        if (boat()) {
-            // An unreceived sample must not appear as a stopped boat or a north heading.
-            for (Fact* fact : {heading(), groundSpeed(), distanceToNextWP(), timeToHome()}) {
-                fact->setRawValue(qQNaN());
-            }
-            _updateDistanceHeadingHome();
+    _resetBoatTelemetry();
+    connect(this, &Vehicle::vehicleTypeChanged, this, &Vehicle::_resetBoatTelemetry);
+    connect(_vehicleLinkManager, &VehicleLinkManager::communicationLostChanged, this, [this](bool lost) {
+        if (lost) {
+            _resetBoatTelemetry();
         }
-    };
-    resetBoatTelemetry();
-    connect(this, &Vehicle::vehicleTypeChanged, this, resetBoatTelemetry);
+    });
+    connect(distanceToHome(), &Fact::rawValueChanged, this, [this]() {
+        if (boat()) {
+            _updateBoatTimeToHome();
+        }
+    });
+    connect(groundSpeed(), &Fact::rawValueChanged, this, [this]() {
+        if (boat()) {
+            _updateBoatTimeToHome();
+        }
+    });
 
     _createCameraManager();
 }
@@ -862,6 +868,7 @@ void Vehicle::_handleGpsRawInt(mavlink_message_t& message)
                 _coordinate = newPosition;
                 emit coordinateChanged(_coordinate);
             }
+            _refreshBoatCoordinate();
             if (!_altitudeMessageAvailable) {
                 _altitudeAMSLFact.setRawValue(gpsRawInt.alt / 1000.0);
             }
@@ -896,6 +903,7 @@ void Vehicle::_handleGlobalPositionInt(mavlink_message_t& message)
         _coordinate = newPosition;
         emit coordinateChanged(_coordinate);
     }
+    _refreshBoatCoordinate();
 }
 
 // TODO: VehicleFactGroup
@@ -936,6 +944,7 @@ void Vehicle::_handleHighLatency(mavlink_message_t& message)
     _coordinate.setLongitude(coordinate.longitude);
     _coordinate.setAltitude(coordinate.altitude);
     emit coordinateChanged(_coordinate);
+    _refreshBoatCoordinate();
 
     _airSpeedFact.setRawValue((double)highLatency.airspeed / 5.0);
     _groundSpeedFact.setRawValue((double)highLatency.groundspeed / 5.0);
@@ -988,6 +997,7 @@ void Vehicle::_handleHighLatency2(mavlink_message_t& message)
     _coordinate.setLongitude(highLatency2.longitude / (double)1E7);
     _coordinate.setAltitude(highLatency2.altitude);
     emit coordinateChanged(_coordinate);
+    _refreshBoatCoordinate();
 
     _airSpeedFact.setRawValue((double)highLatency2.airspeed / 5.0);
     _groundSpeedFact.setRawValue((double)highLatency2.groundspeed / 5.0);
@@ -2647,9 +2657,35 @@ bool Vehicle::autoDisarm()
     return false;
 }
 
+void Vehicle::_resetBoatTelemetry()
+{
+    if (!boat()) {
+        return;
+    }
+
+    // Keep the last map coordinate, but require a new position sample for live distances.
+    _boatCoordinateAvailable = false;
+    _globalPositionIntMessageAvailable = false;
+    _gpsRawIntMessageAvailable = false;
+    _resetAttitudeSource();
+    for (Fact* fact : {heading(), groundSpeed(), distanceToNextWP(), timeToHome(),
+                      _gpsFactGroup->courseOverGround(), _gps2FactGroup->courseOverGround()}) {
+        fact->setRawValue(qQNaN());
+    }
+    _updateDistanceHeadingHome();
+}
+
+void Vehicle::_refreshBoatCoordinate()
+{
+    if (boat()) {
+        _boatCoordinateAvailable = coordinate().isValid();
+        _updateDistanceHeadingHome();
+    }
+}
+
 void Vehicle::_updateDistanceHeadingHome()
 {
-    if (coordinate().isValid() && homePosition().isValid()) {
+    if ((!boat() || _boatCoordinateAvailable) && coordinate().isValid() && homePosition().isValid()) {
         _distanceToHomeFact.setRawValue(coordinate().distanceTo(homePosition()));
         if (_distanceToHomeFact.rawValue().toDouble() > 1.0) {
             _headingToHomeFact.setRawValue(coordinate().azimuthTo(homePosition()));
