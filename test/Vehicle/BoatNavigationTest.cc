@@ -42,30 +42,57 @@ void BoatNavigationTest::_checkManualControlCount(int expected)
 void BoatNavigationTest::_virtualJoystickMapping_data()
 {
     QTest::addColumn<int>("type");
-    for (const auto type : {MAV_TYPE_SURFACE_BOAT, MAV_TYPE_GROUND_ROVER, MAV_TYPE_QUADROTOR, MAV_TYPE_FIXED_WING,
-                            MAV_TYPE_VTOL_TILTROTOR}) {
-        QTest::newRow(QStringLiteral("type%1").arg(type).toLatin1().constData()) << int(type);
+    QTest::addColumn<int>("firmware");
+    for (const auto firmware : {MAV_AUTOPILOT_PX4, MAV_AUTOPILOT_ARDUPILOTMEGA}) {
+        for (const auto type : {MAV_TYPE_SURFACE_BOAT, MAV_TYPE_GROUND_ROVER, MAV_TYPE_QUADROTOR, MAV_TYPE_FIXED_WING,
+                                MAV_TYPE_VTOL_TILTROTOR, MAV_TYPE_SUBMARINE}) {
+            QTest::newRow(QStringLiteral("fw%1-type%2").arg(firmware).arg(type).toLatin1().constData())
+                << static_cast<int>(type) << static_cast<int>(firmware);
+        }
     }
 }
 
 void BoatNavigationTest::_virtualJoystickMapping()
 {
     QFETCH(int, type);
-    _connectVehicle(static_cast<MAV_TYPE>(type));
+    QFETCH(int, firmware);
+    _connectVehicle(static_cast<MAV_TYPE>(type), false, static_cast<MAV_AUTOPILOT>(firmware));
     if (QTest::currentTestFailed()) {
         return;
     }
-    _vehicle->virtualTabletJoystickValue(0.25, -0.5, 0.75, -1.0);
-    _checkManualControlCount(1);
+    const bool px4Boat = firmware == MAV_AUTOPILOT_PX4 && type == MAV_TYPE_SURFACE_BOAT;
+
+    struct Sample
+    {
+        double throttle;
+        int px4Boat;
+        int legacy;
+    };
+
+    int count = 0;
+    for (const auto& sample : {Sample{-1.0, 0, -1000}, Sample{-0.5, 250, -500}, Sample{0.0, 500, 0},
+                               Sample{0.5, 750, 500}, Sample{1.0, 1000, 1000}}) {
+        _vehicle->virtualTabletJoystickValue(0.25, -0.5, 0.75, sample.throttle);
+        _checkManualControlCount(++count);
+        mavlink_message_t message{};
+        QVERIFY(_mockLink->lastReceivedMavlinkMessage(MAVLINK_MSG_ID_MANUAL_CONTROL, message));
+        mavlink_manual_control_t control{};
+        mavlink_msg_manual_control_decode(&message, &control);
+        QCOMPARE(control.target, _vehicle->id());
+        QCOMPARE(control.x, -500);
+        QCOMPARE(control.y, 250);
+        QCOMPARE(control.r, 750);
+        QCOMPARE(control.z, px4Boat ? sample.px4Boat : sample.legacy);
+    }
+    // Physical joystick callers already supply their normalized throttle to the shared encoder.
+    // They must not pass through the virtual-stick conversion a second time.
+    _vehicle->sendJoystickDataThreadSafe(0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    _checkManualControlCount(++count);
     mavlink_message_t message{};
     QVERIFY(_mockLink->lastReceivedMavlinkMessage(MAVLINK_MSG_ID_MANUAL_CONTROL, message));
     mavlink_manual_control_t control{};
     mavlink_msg_manual_control_decode(&message, &control);
-    QCOMPARE(control.target, _vehicle->id());
-    QCOMPARE(control.x, -500);
-    QCOMPARE(control.y, 250);
-    QCOMPARE(control.r, 750);
-    QCOMPARE(control.z, -1000);
+    QCOMPARE(control.z, 500);
 }
 
 void BoatNavigationTest::_virtualJoystickRejectsInvalidInput()
@@ -100,11 +127,11 @@ void BoatNavigationTest::_virtualJoystickRejectsInvalidInput()
     _checkManualControlCount(1);
 }
 
-void BoatNavigationTest::_connectVehicle(MAV_TYPE type, bool commandInt)
+void BoatNavigationTest::_connectVehicle(MAV_TYPE type, bool commandInt, MAV_AUTOPILOT firmware)
 {
     auto* mockConfig = new MockConfiguration(QStringLiteral("Boat navigation regression"));
     mockConfig->setDynamic(true);
-    mockConfig->setFirmwareType(MAV_AUTOPILOT_PX4);
+    mockConfig->setFirmwareType(firmware);
     mockConfig->setVehicleType(type);
     mockConfig->setSendStatusText(false);
     mockConfig->setEnableCamera(false);
@@ -119,7 +146,10 @@ void BoatNavigationTest::_connectVehicle(MAV_TYPE type, bool commandInt)
     _vehicle = MultiVehicleManager::instance()->activeVehicle();
     QVERIFY(_vehicle);
     QTRY_VERIFY_WITH_TIMEOUT(_vehicle->isInitialConnectComplete(), TestTimeout::longMs());
-    QTRY_VERIFY_WITH_TIMEOUT(_vehicle->coordinate().isValid(), TestTimeout::mediumMs());
+    // Sub's mock configuration has no GPS; its packet-encoding regression does not need position.
+    if (type != MAV_TYPE_SUBMARINE) {
+        QTRY_VERIFY_WITH_TIMEOUT(_vehicle->coordinate().isValid(), TestTimeout::mediumMs());
+    }
     QCOMPARE(_vehicle->vehicleType(), type);
     if (commandInt) {
         _vehicle->_capabilityBits |= MAV_PROTOCOL_CAPABILITY_COMMAND_INT;

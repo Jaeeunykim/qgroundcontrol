@@ -1745,6 +1745,7 @@ void Vehicle::virtualTabletJoystickValue(double roll, double pitch, double yaw, 
                 return;
             }
         }
+        thrust = _firmwarePlugin->virtualJoystickThrottle(this, thrust);
     }
     if (!joystickEnabled) {
         sendJoystickDataThreadSafe(

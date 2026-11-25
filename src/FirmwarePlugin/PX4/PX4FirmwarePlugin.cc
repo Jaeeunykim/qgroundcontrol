@@ -722,6 +722,15 @@ bool PX4FirmwarePlugin::supportsNegativeThrust(Vehicle* vehicle) const
     return ((vehicle->vehicleType() == MAV_TYPE_GROUND_ROVER) || (vehicle->vehicleType() == MAV_TYPE_SUBMARINE));
 }
 
+double PX4FirmwarePlugin::virtualJoystickThrottle(const Vehicle* vehicle, double throttle) const
+{
+    if (vehicle != nullptr && vehicle->boat()) {
+        // PX4 decodes MANUAL_CONTROL.z in [0, 1000] to internal thrust in [-1, 1].
+        return (throttle + 1.0) * 0.5;
+    }
+    return FirmwarePlugin::virtualJoystickThrottle(vehicle, throttle);
+}
+
 QString PX4FirmwarePlugin::getHobbsMeter(Vehicle* vehicle) const
 {
     static const char* HOOBS_HI = "LND_FLIGHT_T_HI";

@@ -66,7 +66,7 @@ badaMux 직접 제어·보정, 장비별 출항 점검 화면, 전용 dialect는
 | BOAT-06 | 계획 편집·명령 제한 | 고도 UI·지형 의존을 조정하고 지원되지 않는 항공기 명령 유입 처리 | [x] P3 기본 WP·고도 UI·명령 제한 구현·자동 검증; 복합 패턴 별도 | [ ] |
 | BOAT-07 | 속도 | 활성화·ground speed 명령 생성·재읽기·파일/기체 왕복 일치 | [x] P3 속도 생성·파일/MockLink 왕복 검증 완료 | [ ] |
 | BOAT-08 | 계기판·방향 | SOG/Heading/COG를 구분하고 적절한 기본값 제공, 사용자 설정 보존 | [x] P4 기본 계기판·Heading/COG·아이콘·배치 보존 구현·자동 검증; 실기 대기 | [ ] |
-| BOAT-09 | 수동 조종 | 기존 조이스틱의 조향·추진·중립·역추진 지원 조건과 입력 상실 처리 확인 | P4 가상 입력 세션·축 검증 반영; 물리 조종·중립/역추진 후속 | [ ] |
+| BOAT-09 | 수동 조종 | 기존 조이스틱의 조향·추진·중립·역추진 지원 조건과 입력 상실 처리 확인 | P4 가상 입력 세션·축 검증·PX4 Boat 중립 매핑 반영; 물리 조종·실기 인수 후속 | [ ] |
 | BOAT-10 | 상태·문구·체크리스트 | 미수신/무효/만료·지원 안 됨을 구분하고 armed를 이동/엔진 시동으로 표시하지 않음 | P2 운항 안내·P4 상태·미수신/무효·전체 단절 복구·공통 점검 반영; 개별 만료·장비별 점검 후속 | [ ] |
 | BOAT-11 | 통합·회귀 검증 | 아래 T01~T15와 실행 환경·제한·증거 기록 | 일부 완료 — P1/P2/P3 자동 회귀 통과; 전체 통합·실기·플랫폼 검증 대기 | [ ] |
 | BOAT-12 | 공식 기여 준비 | 최신 master 재대조, 문제별 PR, 영문 설명·UI 증거·CI 결과 준비 | 예정 — P5 | [ ] |
@@ -373,7 +373,8 @@ Heading·GPS 간 독립성과 기존 Rover·항공기 처리, Vehicle 문맥이 
 기존 전곡항 월드·선박 모델의 PX4 SITL + Gazebo 환경을 유지하면서 Ubuntu에서 개발 QGC를 빌드·연결하는
 [가이드](UBUNTU_SITL_TESTING.md)와 [시험 기록 양식](SITL_TEST_REPORT_TEMPLATE.md)을 추가했다.
 기체 타입 11 실측, 기존 설정과 분리한 수동 프로필, P1~P4 시험 순서와 명령/보고/실제 이동의 증거를 구분한다.
-Ubuntu 실행 결과는 아직 없으며 템플릿은 전 항목 미실행이다. Mac의 자동 회귀 결과를 SITL 인수로 옮기지 않는다.
+11월 24일 문서 준비 시점의 템플릿은 전 항목 미실행이다. 11월 25일 PX4 Boat 가상 입력 중립·전후진의
+부분 실측은 [별도 기록](P4_NEUTRAL_TESTING.md)을 따른다. Mac의 자동 회귀 결과를 SITL 인수로 옮기지 않는다.
 이 문서 준비를 T14/T15 완료, 공식 PR 제출 또는 upstream 승인으로 표시하지 않는다.
 
 ### P4 무효 자세 quaternion 보완 — 2026-11-24
@@ -432,3 +433,10 @@ badaMux 제품 명세와 독립적인 테스트 기반 보완은 별도 변경�
 - [QGC Fact System](../../en/qgc-dev-guide/fact_system.md)
 - [MAVLink 메시지 정의](https://mavlink.io/en/messages/common.html)
 - [PX4 MAVLink 스트리밍](https://docs.px4.io/main/en/mavlink/streaming_messages)
+
+### P4 PX4 Boat 가상 입력 중립 매핑 — 2026-11-25
+
+`feat/boat-virtual-joystick-neutral`에서 PX4 Boat에 한해 중심 스틱을 z 500으로 변환한다.
+펌웨어별 hook과 기존 물리 입력 분리, 패킷 행렬 및 실제 Ubuntu SITL의 중립·전진·후진 검증은
+[중립 매핑·SITL 검증 기록](P4_NEUTRAL_TESTING.md)을 따른다.
+T12의 물리 조종·실기 인수와 P5의 나머지 시나리오는 계속 남아 있다.

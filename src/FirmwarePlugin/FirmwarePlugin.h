@@ -257,6 +257,10 @@ public:
     /// Typically supported rover.
     virtual bool supportsNegativeThrust(Vehicle* /*vehicle*/) const { return false; }
 
+    /// Converts the centred Boat virtual stick to the firmware's normalized MANUAL_CONTROL throttle.
+    /// The default preserves the existing encoding; physical joystick input does not use this hook.
+    virtual double virtualJoystickThrottle(const Vehicle* /*vehicle*/, double throttle) const { return throttle; }
+
     /// Returns true if the firmware supports the use of the RC radio and requires the RC radio
     /// setup page. Returns true by default.
     virtual bool supportsRadio() const { return true; }

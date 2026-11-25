@@ -13,6 +13,7 @@ target_sources(${CMAKE_PROJECT_NAME}
         BoatLinkRecoveryTest.cc BoatLinkRecoveryTest.h
         BoatNavigationTest.cc
         BoatNavigationTest.h
+        BoatVirtualJoystickSITLTest.cc BoatVirtualJoystickSITLTest.h
         FTPManagerTest.cc
         FTPManagerTest.h
         FTPControllerTest.cc
@@ -61,6 +62,7 @@ add_subdirectory(ComponentInformation)
 add_qgc_test(APMAirframeComponentControllerTest LABELS Integration Vehicle)
 add_qgc_test(APMStartMissionTest LABELS Integration Vehicle)
 add_qgc_test(BoatNavigationTest LABELS Integration Vehicle TIMEOUT 180)
+add_qgc_test(BoatVirtualJoystickSITLTest LABELS Integration Vehicle Network TIMEOUT 600 SERIAL)
 add_qgc_test(BoatTelemetryTest LABELS Unit Vehicle)
 add_qgc_test(BoatLinkRecoveryTest LABELS Integration Vehicle)
 add_qgc_test(FTPControllerTest LABELS Integration Vehicle RESOURCE_LOCK TempFiles)

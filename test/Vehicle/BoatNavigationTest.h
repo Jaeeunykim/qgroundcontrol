@@ -27,7 +27,7 @@ private slots:
     void _virtualJoystickRejectsInvalidInput();
 
 private:
-    void _connectVehicle(MAV_TYPE type, bool commandInt = false);
+    void _connectVehicle(MAV_TYPE type, bool commandInt = false, MAV_AUTOPILOT firmware = MAV_AUTOPILOT_PX4);
     bool _hasResult(const QSignalSpy& spy, MAV_RESULT result) const;
     void _checkManualControlCount(int expected);
 };

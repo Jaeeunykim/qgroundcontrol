@@ -53,6 +53,7 @@ Boat support must remain independent of the vessel's onboard equipment, includin
 - [x] Cancel Boat virtual-joystick inputs across target/link/UI changes and require fresh interaction before resuming (P4 virtual input).
 - [x] Validate Boat GPS/GPS2 course against fix state, angle domain, and sentinel values while preserving valid zero (P4 COG validity).
 - [x] Clear Boat attitude facts for unusable quaternions while preserving valid north headings and existing aircraft behavior (P4 attitude validity).
+- [x] Center PX4 Boat virtual-stick throttle through the firmware plugin; validate other vehicle/firmware encodings and physical-sender isolation (see [neutral mapping tests](docs/development/boat/P4_NEUTRAL_TESTING.md)).
 - [ ] Complete source freshness/expiry, remaining telemetry validity, physical manual-control, vessel-specific checklist, and platform acceptance work (P4).
 - [ ] Verify missing/stale telemetry, disconnect/reconnect, and Rover/aircraft compatibility.
 - [ ] Prepare focused upstream PRs with tests, UI evidence, and documented limitations.

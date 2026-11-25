@@ -257,3 +257,9 @@ ctest --test-dir build/boat-p3 --output-on-failure --parallel 2 \
 - Android/좁은 화면, 실제 PX4/SITL·실선, 사용자 장기 저장 설정에 대한 수동 인수.
 
 기본 표시의 자동 검증을 P4 전체 완료, 실제 선박 인수 또는 공식 QGC 지원 승인으로 기록하지 않는다.
+
+## PX4 Boat 가상 입력 중립 매핑 — 2026-11-25
+
+FirmwarePlugin을 통해 PX4 Boat의 중심 스틱을 MANUAL_CONTROL.z 500으로 변환한다.
+기존 펌웨어·기체·물리 입력 보존과 실제 UDP SITL 검증의 범위·결과는
+[중립 매핑·SITL 검증 기록](P4_NEUTRAL_TESTING.md)을 따른다.
